@@ -52,6 +52,7 @@ services:
       - /var/run
     networks:
       - internal
+      - public
 
 volumes:
   postgres-data:
@@ -59,3 +60,5 @@ volumes:
 networks:
   internal:
     internal: true
+  public:
+    driver: bridge
