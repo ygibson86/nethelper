@@ -47,7 +47,7 @@ export function RacksPage() {
   }, [filteredRacks])
 
   const openDeviceTopology = (item: NetworkSwitch) => {
-    const matches = topologies.flatMap((topology) => topology.nodes.filter((node) => node.ip === item.ip || node.switchId === item.id || node.label.trim().toLowerCase() === item.hostname.trim().toLowerCase()).map((node) => ({ topologyId: topology.id, topologyName: topology.name, deviceKey: node.switchId ?? item.hostname, nodeLabel: node.label })))
+    const matches = topologies.flatMap((topology) => topology.nodes.filter((node) => node.ip === item.ip || node.switchId === item.id || node.label.trim().toLowerCase() === item.hostname.trim().toLowerCase()).map((node) => ({ topologyId: topology.id, topologyName: topology.name, deviceKey: node.switchId ?? (node.ip === item.ip ? node.ip : item.hostname), nodeLabel: node.label })))
     if (matches.length === 1) {
       navigate(`/topology/${matches[0].topologyId}?device=${encodeURIComponent(matches[0].deviceKey)}`)
       return
