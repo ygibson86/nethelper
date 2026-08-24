@@ -108,6 +108,7 @@ export interface AppData {
   manufacturers: Manufacturer[]
   switches: NetworkSwitch[]
   racks: Rack[]
+  groups?: string[]
   topologies: Topology[]
   corePanels: CorePanel[]
   settings: AppSettings

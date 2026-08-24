@@ -56,17 +56,17 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .rack-rail { position: absolute; top: 7px; bottom: 7px; width: 6px; border: 1px solid var(--border); border-radius: 2px; background: repeating-linear-gradient(to bottom, var(--faint) 0 2px, transparent 2px 12px); opacity: .45; }
 .rack-rail.left { left: 5px; } .rack-rail.right { right: 5px; }
 .rack-devices { display: grid; gap: 5px; }
-.switch-card { --vendor: #64748b; position: relative; min-height: 62px; border: 1px solid color-mix(in srgb, var(--vendor), var(--border) 60%); border-left: 3px solid var(--vendor); background: color-mix(in srgb, var(--vendor) 7%, var(--surface)); border-radius: 4px; padding: 8px 34px 7px 38px; display: flex; align-items: center; cursor: pointer; transition: transform .15s, border-color .15s; }
+.switch-card { --vendor: #64748b; position: relative; min-height: 62px; border: 1px solid color-mix(in srgb, var(--vendor), var(--border) 60%); border-left: 3px solid var(--vendor); background: color-mix(in srgb, var(--vendor) 7%, var(--surface)); border-radius: 4px; padding: 8px 53px 7px 38px; display: flex; align-items: center; cursor: pointer; transition: transform .15s, border-color .15s; }
 .switch-card:hover { transform: translateY(-1px); border-color: var(--vendor); }
 .vendor-badge { position: absolute; left: 8px; top: 10px; width: 21px; height: 21px; display: grid; place-items: center; color: #fff; background: var(--vendor); border-radius: 4px; font-size: .59rem; font-weight: 700; }
 .switch-info { min-width: 0; display: grid; gap: 1px; }
 .switch-info strong { color: var(--text); font-size: .78rem; letter-spacing: .01em; }
 .switch-info span { color: var(--accent); font: 500 .61rem "JetBrains Mono", monospace; }
 .switch-info small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .59rem; }
-.switch-controls { position: absolute; z-index: 3; right: 4px; top: 4px; display: grid; grid-template-columns: 17px 17px; gap: 1px; opacity: 0; visibility: hidden; transition: opacity .15s; }
-.switch-card:hover .switch-controls, .switch-controls.visible { opacity: 1; visibility: visible; }
-.switch-controls button { width: 17px; height: 18px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 3px; cursor: pointer; color: var(--muted); background: var(--surface-3); }
-.switch-controls button:hover { color: var(--text); }
+.switch-card.dragging { opacity: .45; }
+.switch-controls { position: absolute; z-index: 3; right: 4px; top: 4px; display: flex; gap: 2px; }
+.switch-controls button { width: 19px; height: 19px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; color: var(--muted); background: var(--surface-3); }
+.switch-controls button:hover { color: var(--text); border-color: var(--accent); }
 .switch-access { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 2px; }
 .switch-access button { width: 19px; height: 19px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 3px; color: var(--accent); background: var(--surface-3); }
 .switch-access button:disabled { opacity: .65; }
@@ -194,6 +194,7 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .vendor-list { display: grid; }.vendor-row, .vendor-add { display: grid; grid-template-columns: 42px 65px 1fr 32px; gap: 8px; padding: 8px 0; align-items: center; border-bottom: 1px solid var(--border-soft); }.vendor-row input, .vendor-add input { width: 100%; min-width: 0; }.vendor-add { grid-template-columns: 42px 65px 1fr auto; border: 0; padding-top: 12px; }
 .vendor-types { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 5px 0; }.vendor-types label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: .63rem; }.vendor-types input { width: auto; }
 .access-methods { display: flex !important; flex-wrap: wrap; align-items: center; gap: 12px !important; padding: 9px 11px; border: 1px solid var(--border-soft); border-radius: 6px; }.access-methods strong { margin-right: auto; color: var(--text); font-size: .7rem; }.access-methods label { display: flex; }
+.group-manager { display: grid; gap: 13px; }.group-create { display: flex; gap: 8px; }.group-create input { flex: 1; min-width: 0; }.group-list { display: grid; gap: 5px; max-height: 360px; overflow-y: auto; }.group-row { display: flex; align-items: center; gap: 5px; min-height: 39px; padding: 4px 5px 4px 10px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface-2); }.group-row strong { flex: 1; font-size: .76rem; }.group-row input { flex: 1; min-width: 0; min-height: 30px; }.group-empty { color: var(--muted); font-size: .74rem; padding: 10px 0; }
 .route-choices { display: grid; gap: 8px; }.route-choices > p { color: var(--muted); font-size: .75rem; margin-bottom: 5px; }.route-choice { display: grid; gap: 4px; text-align: left; padding: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); cursor: pointer; }.route-choice:hover { border-color: var(--accent); }.route-choice strong { font-size: .78rem; }.route-choice span { color: var(--muted); font-size: .68rem; }
 .backup-card { grid-column: 1 / -1; }.backup-actions { display: flex; gap: 8px; padding: 16px 0; }.backup-stats { display: flex; gap: 30px; padding-top: 13px; border-top: 1px solid var(--border-soft); color: var(--muted); font-size: .68rem; }.backup-stats strong { color: var(--text); font-size: .9rem; margin-right: 3px; }
 .danger-zone { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-color: rgba(240,100,100,.3); }

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Edit3, Eye, Folder, MapPin, Monitor, Plus, Search, Terminal, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Edit3, Eye, Folder, FolderPlus, MapPin, Monitor, Plus, Search, Terminal, Trash2 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNetHelper } from '../store'
@@ -10,7 +10,7 @@ const emptySwitch = { hostname: '', ip: '', manufacturerId: '', deviceType: 'swi
 const createGroupValue = '__create_new_group__'
 
 export function RacksPage() {
-  const { racks, switches, manufacturers, topologies, addRack, updateRack, deleteRack, moveRack, moveRackTo, addSwitch, updateSwitch, deleteSwitch, moveSwitch } = useNetHelper()
+  const { racks, groups = [], switches, manufacturers, topologies, addRack, updateRack, deleteRack, addGroup: createGroup, renameGroup: renameStoredGroup, deleteGroup: deleteStoredGroup, moveRack, moveRackTo, addSwitch, updateSwitch, deleteSwitch, moveSwitchTo } = useNetHelper()
   const [query, setQuery] = useState('')
   const [editMode, setEditMode] = useState(false)
   const [editing, setEditing] = useState<NetworkSwitch | null>(null)
@@ -19,10 +19,15 @@ export function RacksPage() {
   const [form, setForm] = useState(emptySwitch)
   const [rackForm, setRackForm] = useState({ name: '', location: '', group: '' })
   const [draggedRackId, setDraggedRackId] = useState<string | null>(null)
+  const [draggedSwitchId, setDraggedSwitchId] = useState<string | null>(null)
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [editingGroup, setEditingGroup] = useState<string | null>(null)
+  const [groupDraft, setGroupDraft] = useState('')
   const [routeChoices, setRouteChoices] = useState<{ topologyId: string; topologyName: string; deviceKey: string; nodeLabel: string }[]>([])
   const navigate = useNavigate()
 
-  const groupNames = useMemo(() => [...new Set(racks.map((rack) => rack.group.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, 'ru')), [racks])
+  const groupNames = useMemo(() => [...new Set([...groups, ...racks.map((rack) => rack.group.trim())].filter(Boolean))].sort((left, right) => left.localeCompare(right, 'ru')), [groups, racks])
 
   const filteredRacks = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -94,11 +99,35 @@ export function RacksPage() {
     if (editingRack) updateRack(editingRack.id, { name: rackForm.name.trim(), location: rackForm.location.trim(), group: rackForm.group.trim() })
     setEditingRack(null)
   }
+  const addGroup = () => {
+    const name = newGroupName.trim()
+    if (!name) return
+    if (groupNames.some((group) => group.toLowerCase() === name.toLowerCase())) {
+      alert('Такая группа уже существует.')
+      return
+    }
+    setNewGroupName('')
+    createGroup(name)
+  }
+  const renameGroup = (oldName: string) => {
+    const name = groupDraft.trim()
+    if (!name || name === oldName) { setEditingGroup(null); return }
+    if (groupNames.some((group) => group !== oldName && group.toLowerCase() === name.toLowerCase())) {
+      alert('Такая группа уже существует.')
+      return
+    }
+    renameStoredGroup(oldName, name)
+    setEditingGroup(null)
+  }
+  const deleteGroup = (name: string) => {
+    if (!confirm(`Удалить группу «${name}»? Шкафы останутся, но будут без группы.`)) return
+    deleteStoredGroup(name)
+  }
 
   return <>
     <header className="page-header">
       <div><p className="eyebrow">Инфраструктура</p><h1>Шкафы</h1><p className="page-subtitle">Физическое расположение сетевого оборудования</p></div>
-      <div className="toolbar"><div className="mode-switch"><button className={!editMode ? 'active' : ''} onClick={() => setEditMode(false)}><Eye size={16} /> Просмотр</button><button className={editMode ? 'active' : ''} onClick={() => setEditMode(true)}><Edit3 size={16} /> Редактирование</button></div>{editMode && <button className="button primary" onClick={() => { const name = prompt('Название нового шкафа'); if (name?.trim()) addRack(name.trim()) }}><Plus size={18} /> Добавить шкаф</button>}</div>
+      <div className="toolbar"><div className="mode-switch"><button className={!editMode ? 'active' : ''} onClick={() => setEditMode(false)}><Eye size={16} /> Просмотр</button><button className={editMode ? 'active' : ''} onClick={() => setEditMode(true)}><Edit3 size={16} /> Редактирование</button></div>{editMode && <><button className="button" onClick={() => setGroupManagerOpen(true)}><FolderPlus size={17} /> Группы</button><button className="button primary" onClick={() => { const name = prompt('Название нового шкафа'); if (name?.trim()) addRack(name.trim()) }}><Plus size={18} /> Добавить шкаф</button></>}</div>
     </header>
     <div className="search-box"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по шкафам, группам, расположению и оборудованию..." /><kbd>{filteredRacks.length} шкаф.</kbd></div>
     {groupedRacks.map(([group, items]) => <section className="rack-group" key={group}>
@@ -116,11 +145,11 @@ export function RacksPage() {
             </div>
           </div>
           <div className="rack-frame"><div className="rack-rail left" /><div className="rack-rail right" /><div className="rack-devices">
-            {rackSwitches.map((item, index) => {
-              const vendor = manufacturers.find((entry) => entry.id === item.manufacturerId)
-              return <div className={`switch-card ${editMode ? 'editable' : ''}`} key={item.id} style={{ '--vendor': vendor?.color ?? '#64748b' } as React.CSSProperties} onClick={() => openDeviceTopology(item)}>
+             {rackSwitches.map((item) => {
+               const vendor = manufacturers.find((entry) => entry.id === item.manufacturerId)
+               return <div className={`switch-card ${draggedSwitchId === item.id ? 'dragging' : ''}`} key={item.id} draggable={editMode} onDragStart={(event) => { event.stopPropagation(); setDraggedSwitchId(item.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.id) }} onDragOver={(event) => { if (editMode) { event.preventDefault(); event.stopPropagation() } }} onDrop={(event) => { if (!editMode) return; event.preventDefault(); event.stopPropagation(); const sourceId = event.dataTransfer.getData('text/plain'); if (sourceId) moveSwitchTo(rack.id, sourceId, item.id); setDraggedSwitchId(null) }} onDragEnd={() => setDraggedSwitchId(null)} onClick={() => openDeviceTopology(item)}>
                 <span className="vendor-badge">{vendor?.abbreviation ?? '?'}</span><div className="switch-info"><strong>{item.hostname}</strong><span>{item.ip || 'IP не указан'}</span><small>{[deviceTypes[item.deviceType === 'group' ? 'switch' : item.deviceType], item.model, item.description].filter(Boolean).join(' · ') || vendor?.name}</small></div>{item.accessMethods?.length > 0 && <div className="switch-access" onClick={(event) => event.stopPropagation()}>{item.accessMethods.includes('ssh') && <button title="Подключение по SSH — будет реализовано позже" disabled><Terminal size={14} /></button>}{item.accessMethods.includes('rdp') && <button title="Подключение по RDP — будет реализовано позже" disabled><Monitor size={14} /></button>}</div>}
-                <div className={`switch-controls ${editMode ? 'visible' : ''}`} onClick={(event) => event.stopPropagation()}>{editMode && <><button title="Выше" disabled={index === 0} onClick={() => moveSwitch(rack.id, item.id, -1)}><ArrowUp size={14} /></button><button title="Ниже" disabled={index === rackSwitches.length - 1} onClick={() => moveSwitch(rack.id, item.id, 1)}><ArrowDown size={14} /></button></>}{editMode && <><button title="Изменить" onClick={() => openEdit(item)}><Edit3 size={14} /></button><button title="Удалить" onClick={() => confirm(`Удалить ${item.hostname}?`) && deleteSwitch(item.id)}><Trash2 size={14} /></button></>}</div>
+                 <div className="switch-controls" onClick={(event) => event.stopPropagation()}><button title="Изменить" onClick={() => openEdit(item)}><Edit3 size={14} /></button><button title="Удалить" onClick={() => confirm(`Удалить ${item.hostname}?`) && deleteSwitch(item.id)}><Trash2 size={14} /></button></div>
               </div>
             })}
             {rackSwitches.length === 0 && <div className="empty-slot">{query ? 'Нет совпадений' : 'Шкаф пуст'}</div>}
@@ -131,7 +160,8 @@ export function RacksPage() {
     </section>)}
     {filteredRacks.length === 0 && <div className="empty-state"><Search size={38} /><h2>Шкафы не найдены</h2><p>Измените поисковый запрос.</p></div>}
     {routeChoices.length > 0 && <Modal title="Устройство найдено на нескольких схемах" onClose={() => setRouteChoices([])}><div className="route-choices"><p>Выберите схему, которую нужно открыть:</p>{routeChoices.map((choice) => <button key={`${choice.topologyId}-${choice.nodeLabel}`} className="route-choice" onClick={() => openRouteChoice(choice)}><strong>{choice.topologyName}</strong><span>{choice.nodeLabel}</span></button>)}</div></Modal>}
-    {editingRack && <Modal title="Редактировать шкаф" onClose={() => setEditingRack(null)}><form className="form-grid" onSubmit={saveRack}><label className="full">Название<input required autoFocus value={rackForm.name} onChange={(event) => setRackForm({ ...rackForm, name: event.target.value })} /></label><label>Расположение<input value={rackForm.location} onChange={(event) => setRackForm({ ...rackForm, location: event.target.value })} /></label><label>Группа<select value={rackForm.group} onChange={(event) => { if (event.target.value !== createGroupValue) { setRackForm({ ...rackForm, group: event.target.value }); return } const name = prompt('Название новой группы'); if (name?.trim()) setRackForm({ ...rackForm, group: name.trim() }) }}><option value="">Без группы</option>{groupNames.map((group) => <option key={group} value={group}>{group}</option>)}<option value={createGroupValue}>＋ Создать новую группу…</option></select></label><div className="modal-actions full"><button type="button" className="button" onClick={() => setEditingRack(null)}>Отмена</button><button className="button primary">Сохранить</button></div></form></Modal>}
+         {groupManagerOpen && <Modal title="Управление группами шкафов" onClose={() => setGroupManagerOpen(false)}><div className="group-manager"><form className="group-create" onSubmit={(event) => { event.preventDefault(); addGroup() }}><input value={newGroupName} onChange={(event) => setNewGroupName(event.target.value)} placeholder="Название новой группы" /><button className="button primary"><Plus size={16} /> Добавить</button></form>{groupNames.length === 0 ? <p className="group-empty">Групп пока нет.</p> : <div className="group-list">{groupNames.map((group) => <div className="group-row" key={group}>{editingGroup === group ? <><input autoFocus value={groupDraft} onChange={(event) => setGroupDraft(event.target.value)} /><button type="button" className="icon-button" title="Сохранить" onClick={() => renameGroup(group)}><Edit3 size={15} /></button></> : <><strong>{group}</strong><button type="button" className="icon-button" title="Переименовать" onClick={() => { setEditingGroup(group); setGroupDraft(group) }}><Edit3 size={15} /></button><button type="button" className="icon-button danger" title="Удалить группу" onClick={() => deleteGroup(group)}><Trash2 size={15} /></button></>}</div>)}</div>}</div></Modal>}
+     {editingRack && <Modal title="Редактировать шкаф" onClose={() => setEditingRack(null)}><form className="form-grid" onSubmit={saveRack}><label className="full">Название<input required autoFocus value={rackForm.name} onChange={(event) => setRackForm({ ...rackForm, name: event.target.value })} /></label><label>Расположение<input value={rackForm.location} onChange={(event) => setRackForm({ ...rackForm, location: event.target.value })} /></label><label>Группа<select value={rackForm.group} onChange={(event) => { if (event.target.value !== createGroupValue) { setRackForm({ ...rackForm, group: event.target.value }); return } const name = prompt('Название новой группы'); if (name?.trim()) setRackForm({ ...rackForm, group: name.trim() }) }}><option value="">Без группы</option>{groupNames.map((group) => <option key={group} value={group}>{group}</option>)}<option value={createGroupValue}>＋ Создать новую группу…</option></select></label><div className="modal-actions full"><button type="button" className="button" onClick={() => setEditingRack(null)}>Отмена</button><button className="button primary">Сохранить</button></div></form></Modal>}
     {(editing || addingToRack) && <Modal title={editing ? 'Изменить устройство' : 'Новое устройство'} onClose={() => { setEditing(null); setAddingToRack(null) }}><form className="form-grid" onSubmit={saveSwitch}><label>Hostname<input required autoFocus value={form.hostname} onChange={(event) => setForm({ ...form, hostname: event.target.value })} /></label><label>IP-адрес<input value={form.ip} onChange={(event) => setForm({ ...form, ip: event.target.value })} placeholder="10.20.0.1" /></label><label>Тип устройства<select value={form.deviceType} onChange={(event) => { const deviceType = event.target.value as Exclude<DeviceType, 'group'>; const compatible = manufacturers.filter((manufacturer) => manufacturer.deviceTypes.includes(deviceType)); setForm({ ...form, deviceType, manufacturerId: !form.manufacturerId || compatible.some((item) => item.id === form.manufacturerId) ? form.manufacturerId : compatible[0]?.id ?? '', isCore: deviceType === 'switch' ? form.isCore : false }) }}>{Object.entries(deviceTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Модель<input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder="Например, Catalyst 9300-48T" /></label><label>Производитель<select value={form.manufacturerId} onChange={(event) => setForm({ ...form, manufacturerId: event.target.value })}><option value="">Не указан</option>{manufacturers.filter((item) => item.deviceTypes.includes(form.deviceType)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Связанная схема<select value={form.topologyId} onChange={(event) => setForm({ ...form, topologyId: event.target.value })}><option value="">Не выбрана</option>{topologies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="full">Описание<input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><div className="access-methods full"><strong>Будущие способы подключения</strong><label className="checkbox"><input type="checkbox" checked={form.accessMethods.includes('ssh')} onChange={(event) => setForm({ ...form, accessMethods: event.target.checked ? [...form.accessMethods, 'ssh'] : form.accessMethods.filter((method) => method !== 'ssh') })} /> SSH</label><label className="checkbox"><input type="checkbox" checked={form.accessMethods.includes('rdp')} onChange={(event) => setForm({ ...form, accessMethods: event.target.checked ? [...form.accessMethods, 'rdp'] : form.accessMethods.filter((method) => method !== 'rdp') })} /> RDP</label></div>{form.deviceType === 'switch' && <label className="checkbox full"><input type="checkbox" checked={form.isCore} onChange={(event) => setForm({ ...form, isCore: event.target.checked })} /> Core-коммутатор</label>}<div className="modal-actions full"><button type="button" className="button" onClick={() => { setEditing(null); setAddingToRack(null) }}>Отмена</button><button className="button primary">Сохранить</button></div></form></Modal>}
   </>
 }

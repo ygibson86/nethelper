@@ -25,6 +25,7 @@ const initialData: AppData = {
   ],
   switches: importedSwitches,
   racks: importedRacks,
+  groups: [...new Set(importedRacks.map((rack) => rack.group.trim()).filter(Boolean))],
   topologies: [{
     id: 'top-main',
     name: 'Главная сеть',
@@ -62,12 +63,16 @@ interface NetHelperStore extends AppData {
   addRack: (name: string) => void
   updateRack: (id: string, patch: Partial<Rack>) => void
   deleteRack: (id: string) => void
+  addGroup: (name: string) => void
+  renameGroup: (oldName: string, newName: string) => void
+  deleteGroup: (name: string) => void
   moveRack: (id: string, direction: -1 | 1) => void
   moveRackTo: (sourceId: string, targetId: string) => void
   addSwitch: (rackId: string, input: Omit<NetworkSwitch, 'id' | 'rackId'>) => void
   updateSwitch: (id: string, patch: Partial<NetworkSwitch>) => void
   deleteSwitch: (id: string) => void
   moveSwitch: (rackId: string, switchId: string, direction: -1 | 1) => void
+  moveSwitchTo: (rackId: string, switchId: string, targetId: string) => void
   addTopology: (name: string) => string
   updateTopology: (id: string, patch: Partial<Topology>) => void
   deleteTopology: (id: string) => void
@@ -86,6 +91,15 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
   addRack: (name) => set((state) => ({ racks: [...state.racks, { id: uid('rack'), name, location: '', group: '', switchIds: [] }] })),
   updateRack: (id, patch) => set((state) => ({ racks: state.racks.map((rack) => rack.id === id ? { ...rack, ...patch } : rack) })),
   deleteRack: (id) => set((state) => ({ racks: state.racks.filter((rack) => rack.id !== id), switches: state.switches.filter((item) => item.rackId !== id) })),
+  addGroup: (name) => set((state) => ({ groups: [...new Set([...(state.groups ?? []), name.trim()])].filter(Boolean) })),
+  renameGroup: (oldName, newName) => set((state) => ({
+    groups: [...new Set((state.groups ?? []).map((group) => group === oldName ? newName.trim() : group))].filter(Boolean),
+    racks: state.racks.map((rack) => rack.group.trim() === oldName ? { ...rack, group: newName.trim() } : rack),
+  })),
+  deleteGroup: (name) => set((state) => ({
+    groups: (state.groups ?? []).filter((group) => group !== name),
+    racks: state.racks.map((rack) => rack.group.trim() === name ? { ...rack, group: '' } : rack),
+  })),
   moveRack: (id, direction) => set((state) => {
     const racks = [...state.racks]
     const current = racks.findIndex((rack) => rack.id === id)
@@ -125,6 +139,16 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
     ;[items[current], items[target]] = [items[target], items[current]]
     return { ...rack, switchIds: items }
   }) })),
+  moveSwitchTo: (rackId, switchId, targetId) => set((state) => ({ racks: state.racks.map((rack) => {
+    if (rack.id !== rackId || switchId === targetId) return rack
+    const items = [...rack.switchIds]
+    const source = items.indexOf(switchId)
+    const target = items.indexOf(targetId)
+    if (source < 0 || target < 0) return rack
+    items.splice(source, 1)
+    items.splice(items.indexOf(targetId), 0, switchId)
+    return { ...rack, switchIds: items }
+  }) })),
   addTopology: (name) => {
     const id = uid('topology')
     set((state) => ({ topologies: [...state.topologies, { id, name, description: '', nodes: [], links: [] }] }))
@@ -158,6 +182,7 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
       ...data,
       version: 7,
       racks: targetRacks,
+      groups: data.groups ?? [...new Set(targetRacks.map((rack) => rack.group.trim()).filter(Boolean))],
       manufacturers: (data.manufacturers ?? initialData.manufacturers).map((manufacturer) => ({ ...manufacturer, deviceTypes: manufacturer.deviceTypes ?? initialData.manufacturers.find((item) => item.id === manufacturer.id)?.deviceTypes ?? ['switch', 'router', 'server', 'pc'] })),
       switches: targetSwitches,
       corePanels: (data.corePanels ?? []).filter((panel) => switchIds.has(panel.switchId)).map((panel) => ({
