@@ -72,7 +72,7 @@ interface NetHelperStore extends AppData {
   updateSwitch: (id: string, patch: Partial<NetworkSwitch>) => void
   deleteSwitch: (id: string) => void
   moveSwitch: (rackId: string, switchId: string, direction: -1 | 1) => void
-  moveSwitchTo: (rackId: string, switchId: string, targetId: string) => void
+  moveSwitchTo: (rackId: string, switchId: string, targetId: string, position: 'before' | 'after') => void
   addTopology: (name: string) => string
   updateTopology: (id: string, patch: Partial<Topology>) => void
   deleteTopology: (id: string) => void
@@ -139,14 +139,15 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
     ;[items[current], items[target]] = [items[target], items[current]]
     return { ...rack, switchIds: items }
   }) })),
-  moveSwitchTo: (rackId, switchId, targetId) => set((state) => ({ racks: state.racks.map((rack) => {
+  moveSwitchTo: (rackId, switchId, targetId, position) => set((state) => ({ racks: state.racks.map((rack) => {
     if (rack.id !== rackId || switchId === targetId) return rack
     const items = [...rack.switchIds]
     const source = items.indexOf(switchId)
     const target = items.indexOf(targetId)
     if (source < 0 || target < 0) return rack
     items.splice(source, 1)
-    items.splice(items.indexOf(targetId), 0, switchId)
+    const targetIndex = items.indexOf(targetId)
+    items.splice(targetIndex + (position === 'after' ? 1 : 0), 0, switchId)
     return { ...rack, switchIds: items }
   }) })),
   addTopology: (name) => {
