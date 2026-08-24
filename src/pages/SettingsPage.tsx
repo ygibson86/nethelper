@@ -13,7 +13,7 @@ export function SettingsPage() {
   const [vendor, setVendor] = useState({ name: '', abbreviation: '', color: '#22c55e', deviceTypes: ['switch'] as DeviceType[] })
 
   const exportData = () => {
-    const data: AppData = { version: store.version, manufacturers: store.manufacturers, switches: store.switches, racks: store.racks, topologies: store.topologies, corePanels: store.corePanels, settings: store.settings }
+    const data: AppData = { version: store.version, manufacturers: store.manufacturers, switches: store.switches, racks: store.racks, groups: store.groups, topologies: store.topologies, corePanels: store.corePanels, settings: store.settings }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -52,7 +52,6 @@ export function SettingsPage() {
         <div className="settings-card-title"><div><h2>Внешний вид</h2><p>Глобальные параметры интерфейса</p></div></div>
         <div className="setting-row"><div><strong>Тема</strong><span>Цветовая схема приложения</span></div><div className="segmented"><button className={store.settings.theme === 'dark' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'dark' })}><Moon size={16} /> Тёмная</button><button className={store.settings.theme === 'light' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'light' })}><Sun size={16} /> Светлая</button></div></div>
         <div className="setting-row"><div><strong>Размер шрифта</strong><span>{store.settings.fontSize} px</span></div><input type="range" min="13" max="18" value={store.settings.fontSize} onChange={(event) => store.updateSettings({ fontSize: Number(event.target.value) })} /></div>
-        <div className="setting-row"><div><strong>Портов в ряду</strong><span>Для лицевой панели core</span></div><select value={store.settings.portsPerRow} onChange={(event) => store.updateSettings({ portsPerRow: Number(event.target.value) })}><option value="8">8</option><option value="12">12</option><option value="16">16</option><option value="24">24</option></select></div>
       </section>
       <section className="settings-card vendors-card">
         <div className="settings-card-title"><div><h2>Производители</h2><p>Цвета и короткие обозначения оборудования</p></div></div>
