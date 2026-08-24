@@ -63,8 +63,8 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .switch-info strong { color: var(--text); font-size: .78rem; letter-spacing: .01em; }
 .switch-info span { color: var(--accent); font: 500 .61rem "JetBrains Mono", monospace; }
 .switch-info small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .59rem; }
-.switch-controls { position: absolute; right: 4px; top: 4px; display: grid; grid-template-columns: 17px 17px; gap: 1px; opacity: 0; transition: opacity .15s; }
-.switch-card:hover .switch-controls, .switch-card.editable .switch-controls { opacity: 1; }
+.switch-controls { position: absolute; z-index: 3; right: 4px; top: 4px; display: grid; grid-template-columns: 17px 17px; gap: 1px; opacity: 0; visibility: hidden; transition: opacity .15s; }
+.switch-card:hover .switch-controls, .switch-controls.visible { opacity: 1; visibility: visible; }
 .switch-controls button { width: 17px; height: 18px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 3px; cursor: pointer; color: var(--muted); background: var(--surface-3); }
 .switch-controls button:hover { color: var(--text); }
 .switch-access { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 2px; }
