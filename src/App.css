@@ -43,8 +43,8 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .rack-group-title { display: flex; align-items: center; gap: 7px; margin: 0 0 8px 2px; color: var(--muted); }
 .rack-group-title h2 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
 .rack-group-title span { min-width: 19px; height: 17px; display: grid; place-items: center; border-radius: 9px; background: var(--surface-3); color: var(--muted); font-size: .6rem; }
-.racks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 13px; align-items: start; }
-.rack { border: 1px solid var(--border); background: var(--surface); border-radius: 7px; overflow: hidden; transition: opacity .15s, transform .15s, border-color .15s; }
+.racks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 13px; align-items: stretch; }
+.rack { display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); border-radius: 7px; overflow: hidden; transition: opacity .15s, transform .15s, border-color .15s; }
 .rack.editable { cursor: grab; }
 .rack.editable:active { cursor: grabbing; }
 .rack.dragging { opacity: .42; transform: scale(.98); border-color: var(--accent); }
@@ -52,7 +52,7 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .rack-top h2 { font-size: .82rem; }
 .rack-top p { color: var(--muted); font-size: .63rem; margin-top: 4px; display: flex; align-items: center; gap: 3px; }
 .rack-actions { display: flex; align-items: center; gap: 3px; color: var(--faint); font-size: .62rem; }
-.rack-frame { position: relative; padding: 10px 14px; min-height: 94px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.012), transparent), var(--surface-2); }
+.rack-frame { position: relative; flex: 1; display: flex; align-items: flex-start; padding: 10px 14px; min-height: 94px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.012), transparent), var(--surface-2); }
 .rack-rail { position: absolute; top: 7px; bottom: 7px; width: 6px; border: 1px solid var(--border); border-radius: 2px; background: repeating-linear-gradient(to bottom, var(--faint) 0 2px, transparent 2px 12px); opacity: .45; }
 .rack-rail.left { left: 5px; } .rack-rail.right { right: 5px; }
 .rack-devices { display: grid; gap: 5px; }
