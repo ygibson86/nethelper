@@ -6,11 +6,15 @@ import type { AppData, DeviceType } from '../types'
 const vendorDeviceTypes: { value: DeviceType; label: string }[] = [
   { value: 'switch', label: 'Коммутаторы' }, { value: 'router', label: 'Маршрутизаторы' }, { value: 'server', label: 'Серверы' }, { value: 'pc', label: 'Компьютеры' }, { value: 'firewall', label: 'Межсетевые экраны' }, { value: 'access-point', label: 'Точки доступа' }, { value: 'phone', label: 'IP-телефоны' }, { value: 'camera', label: 'Камеры' }, { value: 'ups', label: 'ИБП' }, { value: 'nas', label: 'NAS' }, { value: 'printer', label: 'Принтеры' }, { value: 'patch-panel', label: 'Патч-панели' },
 ]
+const allVendorTypes = vendorDeviceTypes.map((type) => type.value)
+const defaultVendor = { name: '', abbreviation: '', color: '#22c55e', deviceTypes: allVendorTypes }
 
 export function SettingsPage() {
   const store = useNetHelper()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [vendor, setVendor] = useState({ name: '', abbreviation: '', color: '#22c55e', deviceTypes: ['switch'] as DeviceType[] })
+  const [vendor, setVendor] = useState(defaultVendor)
+
+  const toggleVendorType = (types: DeviceType[], type: DeviceType, checked: boolean) => checked ? [...new Set([...types, type])] : types.filter((item) => item !== type)
 
   const exportData = () => {
     const data: AppData = { version: store.version, manufacturers: store.manufacturers, switches: store.switches, racks: store.racks, groups: store.groups, topologies: store.topologies, corePanels: store.corePanels, settings: store.settings }
@@ -42,7 +46,7 @@ export function SettingsPage() {
     event.preventDefault()
     if (!vendor.name.trim() || !vendor.abbreviation.trim()) return
     store.addManufacturer({ name: vendor.name.trim(), abbreviation: vendor.abbreviation.trim().slice(0, 3).toUpperCase(), color: vendor.color, deviceTypes: vendor.deviceTypes })
-    setVendor({ name: '', abbreviation: '', color: '#22c55e', deviceTypes: ['switch'] })
+    setVendor(defaultVendor)
   }
 
   return <>
@@ -58,13 +62,14 @@ export function SettingsPage() {
         <div className="vendor-list">{store.manufacturers.map((item) => {
           const inUse = store.switches.some((device) => device.manufacturerId === item.id)
           return <div className="vendor-row" key={item.id}>
-            <input aria-label="Цвет" type="color" value={item.color} onChange={(event) => store.updateManufacturer(item.id, { color: event.target.value })} />
-            <input value={item.abbreviation} maxLength={3} onChange={(event) => store.updateManufacturer(item.id, { abbreviation: event.target.value.toUpperCase() })} />
+             <input aria-label="Цвет" type="color" value={item.color} onChange={(event) => store.updateManufacturer(item.id, { color: event.target.value })} />
+             <input value={item.abbreviation} maxLength={3} onChange={(event) => store.updateManufacturer(item.id, { abbreviation: event.target.value.toUpperCase() })} />
              <input value={item.name} onChange={(event) => store.updateManufacturer(item.id, { name: event.target.value })} title={item.deviceTypes.map((type) => vendorDeviceTypes.find((entry) => entry.value === type)?.label).filter(Boolean).join(', ')} />
-            <button className="icon-button danger" disabled={inUse} title={inUse ? 'Производитель используется' : 'Удалить'} onClick={() => store.deleteManufacturer(item.id)}><Trash2 size={16} /></button>
-          </div>
+             <button className="icon-button danger" disabled={inUse} title={inUse ? 'Производитель используется' : 'Удалить'} onClick={() => store.deleteManufacturer(item.id)}><Trash2 size={16} /></button>
+             <div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={item.deviceTypes.includes(type.value)} onChange={(event) => store.updateManufacturer(item.id, { deviceTypes: toggleVendorType(item.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div>
+           </div>
         })}</div>
-        <form className="vendor-add" onSubmit={addVendor}><input type="color" value={vendor.color} onChange={(event) => setVendor({ ...vendor, color: event.target.value })} /><input required maxLength={3} placeholder="Код" value={vendor.abbreviation} onChange={(event) => setVendor({ ...vendor, abbreviation: event.target.value })} /><input required placeholder="Название" value={vendor.name} onChange={(event) => setVendor({ ...vendor, name: event.target.value })} /><button className="button primary"><Plus size={16} /> Добавить</button><div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={vendor.deviceTypes.includes(type.value)} onChange={(event) => setVendor({ ...vendor, deviceTypes: event.target.checked ? [...vendor.deviceTypes, type.value] : vendor.deviceTypes.filter((item) => item !== type.value) })} /> {type.label}</label>)}</div></form>
+        <form className="vendor-add" onSubmit={addVendor}><input type="color" value={vendor.color} onChange={(event) => setVendor({ ...vendor, color: event.target.value })} /><input required maxLength={3} placeholder="Код" value={vendor.abbreviation} onChange={(event) => setVendor({ ...vendor, abbreviation: event.target.value })} /><input required placeholder="Название" value={vendor.name} onChange={(event) => setVendor({ ...vendor, name: event.target.value })} /><button className="button primary"><Plus size={16} /> Добавить</button><div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={vendor.deviceTypes.includes(type.value)} onChange={(event) => setVendor({ ...vendor, deviceTypes: toggleVendorType(vendor.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div></form>
       </section>
       <section className="settings-card backup-card">
         <div className="settings-card-title"><div><h2>Резервная копия</h2><p>Все данные сохраняются в одном JSON-файле</p></div></div>

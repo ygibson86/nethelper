@@ -53,8 +53,8 @@ const initialData: AppData = {
       { id: 'link-7', source: 'node-f1-2', target: 'node-ap', sourcePort: '1/0/10', targetPort: 'LAN', cableType: 'copper', label: 'Wi-Fi' },
       { id: 'link-8', source: 'node-f2-1', target: 'node-camera', sourcePort: '1/0/8', targetPort: 'LAN', cableType: 'copper', label: 'CCTV' },
       { id: 'link-9', source: 'node-ap', target: 'node-camera', sourcePort: 'radio0', targetPort: 'wlan0', cableType: 'wireless', label: 'Пример wireless' },
-    ],
-  }],
+     ],
+   }],
   corePanels: [],
   settings: { theme: 'dark', fontSize: 15, portsPerRow: 24 },
 }

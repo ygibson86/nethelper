@@ -5,13 +5,14 @@ import { useNetHelper } from '../store'
 import type { DeviceType, NetworkSwitch, Rack } from '../types'
 import { Modal } from '../components/Layout'
 
-const deviceTypes: Record<Exclude<DeviceType, 'group'>, string> = { switch: 'Коммутатор', router: 'Маршрутизатор', pc: 'Компьютер', server: 'Сервер', firewall: 'Межсетевой экран', 'access-point': 'Точка доступа', printer: 'Принтер', phone: 'IP-телефон', camera: 'Камера', cloud: 'Облачное устройство', ups: 'ИБП', nas: 'Сетевое хранилище', 'patch-panel': 'Патч-панель' }
+const deviceTypes: Record<DeviceType, string> = { switch: 'Коммутатор', router: 'Маршрутизатор', pc: 'Компьютер', server: 'Сервер', firewall: 'Межсетевой экран', 'access-point': 'Точка доступа', printer: 'Принтер', phone: 'IP-телефон', camera: 'Камера', cloud: 'Облачное устройство', ups: 'ИБП', nas: 'Сетевое хранилище', 'patch-panel': 'Патч-панель', text: 'Текст', group: 'Группа' }
 const emptySwitch = { hostname: '', ip: '', manufacturerId: '', deviceType: 'switch' as Exclude<DeviceType, 'group'>, model: '', accessMethods: [] as ('ssh' | 'rdp')[], description: '', topologyId: '', isCore: false }
 const createGroupValue = '__create_new_group__'
 
 export function RacksPage() {
   const { racks, groups = [], switches, manufacturers, topologies, addRack, updateRack, deleteRack, addGroup: createGroup, renameGroup: renameStoredGroup, deleteGroup: deleteStoredGroup, moveRack, moveRackTo, addSwitch, updateSwitch, deleteSwitch, moveSwitchTo } = useNetHelper()
   const [query, setQuery] = useState('')
+  const [ipLastOctet, setIpLastOctet] = useState('')
   const [editMode, setEditMode] = useState(false)
   const [editing, setEditing] = useState<NetworkSwitch | null>(null)
   const [editingRack, setEditingRack] = useState<Rack | null>(null)
@@ -32,16 +33,20 @@ export function RacksPage() {
 
   const filteredRacks = useMemo(() => {
     const term = query.trim().toLowerCase()
+    const octet = ipLastOctet.trim()
+    const hasIpOctetFilter = octet.length > 0
+    const matchesIpOctet = (ip: string) => ip.split('.').at(-1) === octet
     return racks.map((rack) => {
       const rackMatches = !term || [rack.name, rack.location, rack.group].some((value) => value.toLowerCase().includes(term))
       const matchedSwitches = rack.switchIds.map((switchId) => switches.find((item) => item.id === switchId)).filter((item): item is NetworkSwitch => Boolean(item)).filter((item) => {
+        if (hasIpOctetFilter && !matchesIpOctet(item.ip)) return false
         if (rackMatches) return true
         const vendor = manufacturers.find((entry) => entry.id === item.manufacturerId)
         return [item.hostname, item.ip, item.model, item.description, deviceTypes[item.deviceType === 'group' ? 'switch' : item.deviceType], vendor?.name, vendor?.abbreviation].some((value) => value?.toLowerCase().includes(term))
       })
-      return { rack, devices: matchedSwitches, visible: rackMatches || matchedSwitches.length > 0 }
+      return { rack, devices: matchedSwitches, visible: (rackMatches && !hasIpOctetFilter) || matchedSwitches.length > 0 }
     }).filter((item) => item.visible)
-  }, [query, racks, switches, manufacturers])
+  }, [query, ipLastOctet, racks, switches, manufacturers])
 
   const groupedRacks = useMemo(() => {
     const groups = new Map<string, typeof filteredRacks>()
@@ -130,7 +135,7 @@ export function RacksPage() {
       <div><p className="eyebrow">Инфраструктура</p><h1>Шкафы</h1><p className="page-subtitle">Физическое расположение сетевого оборудования</p></div>
       <div className="toolbar"><div className="mode-switch"><button className={!editMode ? 'active' : ''} onClick={() => setEditMode(false)}><Eye size={16} /> Просмотр</button><button className={editMode ? 'active' : ''} onClick={() => setEditMode(true)}><Edit3 size={16} /> Редактирование</button></div>{editMode && <><button className="button" onClick={() => setGroupManagerOpen(true)}><FolderPlus size={17} /> Группы</button><button className="button primary" onClick={() => { const name = prompt('Название нового шкафа'); if (name?.trim()) addRack(name.trim()) }}><Plus size={18} /> Добавить шкаф</button></>}</div>
     </header>
-    <div className="search-box"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по шкафам, группам, расположению и оборудованию..." /><kbd>{filteredRacks.length} шкаф.</kbd></div>
+    <div className="rack-search-controls"><div className="search-box"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по шкафам, группам, расположению и оборудованию..." /><kbd>{filteredRacks.length} шкаф.</kbd></div><div className="ip-filter-box"><input value={ipLastOctet} onChange={(event) => setIpLastOctet(event.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" pattern="[0-9]*" placeholder="IP" aria-label="Последний октет IP-адреса" title="Фильтр по последнему октету IP-адреса" /></div></div>
     {groupedRacks.map(([group, items]) => <section className="rack-group" key={group}>
       <div className="rack-group-title"><Folder size={17} /><h2>{group}</h2><span>{items.length}</span></div>
       <div className="racks-grid">
@@ -153,7 +158,7 @@ export function RacksPage() {
                  {editMode && <div className="switch-controls" onClick={(event) => event.stopPropagation()}><button title="Изменить" onClick={() => openEdit(item)}><Edit3 size={14} /></button><button className="danger" title="Удалить" onClick={() => confirm(`Удалить ${item.hostname}?`) && deleteSwitch(item.id)}><Trash2 size={14} /></button></div>}
               </div>
             })}
-            {rackSwitches.length === 0 && <div className="empty-slot">{query ? 'Нет совпадений' : 'Шкаф пуст'}</div>}
+             {rackSwitches.length === 0 && <div className="empty-slot">{query || ipLastOctet ? 'Нет совпадений' : 'Шкаф пуст'}</div>}
           </div></div>
           {editMode && <button className="button rack-add" onClick={() => openAdd(rack.id)}><Plus size={16} /> Добавить устройство</button>}
         </article>)}

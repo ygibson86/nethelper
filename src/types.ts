@@ -1,5 +1,5 @@
 export type Theme = 'dark' | 'light'
-export type DeviceType = 'switch' | 'router' | 'pc' | 'server' | 'firewall' | 'access-point' | 'printer' | 'phone' | 'camera' | 'cloud' | 'ups' | 'nas' | 'patch-panel' | 'group'
+export type DeviceType = 'switch' | 'router' | 'pc' | 'server' | 'firewall' | 'access-point' | 'printer' | 'phone' | 'camera' | 'cloud' | 'ups' | 'nas' | 'patch-panel' | 'text' | 'group'
 export type CableType = 'copper' | 'fiber' | 'dac' | 'wireless'
 export type HandleSide = 'top' | 'bottom' | 'left' | 'right'
 export type HandleLayout = Record<HandleSide, number>
@@ -42,6 +42,7 @@ export interface TopologyNode {
   x: number
   y: number
   label: string
+  text?: string
   name?: string
   type: DeviceType
   color: string
@@ -52,6 +53,7 @@ export interface TopologyNode {
   groupLabelPosition?: 'top' | 'center'
   switchId?: string
   ip?: string
+  fontSize?: number
 }
 
 export interface TopologyLink {
@@ -64,6 +66,7 @@ export interface TopologyLink {
   targetPort: string
   cableType: CableType
   label?: string
+  showLabel?: boolean
 }
 
 export interface Topology {
