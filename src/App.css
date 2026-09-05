@@ -92,8 +92,11 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .modal-header h2 { font-size: 1.02rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: .72rem; font-weight: 600; }
+.form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: .72rem; font-weight: 600; min-width: 0; }
 .form-grid .full { grid-column: 1 / -1; }
+.form-grid input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.form-grid select,
+.form-grid textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 input, select, textarea { color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; min-height: 37px; padding: 8px 10px; font: inherit; } textarea { min-height: 90px; resize: vertical; }
 input[type="color"] { padding: 3px; min-width: 42px; }
 input[type="checkbox"] { min-height: 0; accent-color: var(--accent); }
@@ -105,11 +108,15 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .mode-switch button, .segmented button { min-height: 30px; padding: 0 10px; border: 0; background: transparent; color: var(--muted); border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: .72rem; }
 .mode-switch button.active, .segmented button.active { background: var(--surface-3); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
 .topology-workspace { height: calc(100vh - 151px); min-height: 550px; display: grid; grid-template-columns: 210px minmax(0, 1fr); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface); }
-.topology-list { padding: 13px 9px; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+.topology-list { padding: 13px 9px; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.topology-items { overflow-y: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 3px; }
+.topology-items::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.topology-items { scrollbar-width: none; -ms-overflow-style: none; }
 .topology-search { display: flex; align-items: center; gap: 6px; margin: 0 4px 8px; padding: 0 7px; border: 1px solid var(--border-soft); border-radius: 5px; color: var(--faint); background: var(--surface-2); }
 .topology-search input { width: 100%; min-width: 0; min-height: 30px; padding: 0; border: 0; background: transparent; outline: 0; font-size: .68rem; }
 .section-title { display: flex; justify-content: space-between; align-items: center; padding: 0 6px 9px 9px; color: var(--muted); font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.topology-item { width: 100%; border: 0; background: transparent; border-radius: 6px; color: var(--muted); display: flex; gap: 9px; align-items: flex-start; padding: 10px; cursor: pointer; text-align: left; }
+.topology-item { width: 100%; border: 0; background: transparent; border-radius: 6px; color: var(--muted); display: flex; gap: 9px; align-items: flex-start; padding: 10px; cursor: pointer; text-align: left; flex-shrink: 0; }
+.topology-item svg { flex: none; display: block; }
 .topology-item:hover { background: var(--surface-2); color: var(--text); }
 .topology-item.active { background: var(--accent-soft); color: var(--accent); }
 .topology-item span { display: grid; gap: 3px; }
@@ -220,14 +227,16 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .templates-toolbar { display: grid; gap: 10px; }
 .templates-toolbar .segmented { display: flex; }
 .templates-toolbar .segmented button { flex: 1; }
-.templates-list { display: grid; gap: 6px; max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 2px; }
+.templates-list { display: grid; gap: 6px; max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 2px; scrollbar-width: none; -ms-overflow-style: none; }
+.templates-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .tpl-item { display: grid; gap: 5px; text-align: left; padding: 11px 12px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .tpl-item:hover { border-color: #3b495c; background: var(--surface-2); }
 .tpl-item.active { border-color: var(--accent); background: var(--accent-soft); }
+.tpl-item.disabled { opacity: .5; cursor: not-allowed; }
+.tpl-item.disabled:hover { border-color: var(--border-soft); background: var(--surface); }
 .tpl-item-top { display: flex; align-items: center; justify-content: space-between; }
 .tpl-item strong { font-size: .8rem; color: var(--text); }
 .tpl-item-desc { color: var(--muted); font-size: .68rem; line-height: 1.35; }
-.tpl-item-date { color: var(--faint); font-size: .62rem; }
 .tpl-vendor-badge { align-self: flex-start; display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--surface-3); color: var(--accent); border: 1px solid var(--border-soft); }
 .tpl-vendor-badge.small { font-size: .55rem; padding: 1px 7px; }
 .tpl-empty { color: var(--muted); font-size: .78rem; padding: 14px 4px; }
@@ -246,10 +255,32 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .tpl-hint { font-size: .62rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--faint); margin-left: 5px; }
 .tpl-config-wrap { cursor: text; }
 .tpl-config-wrap .config-block { cursor: text; }
-.tpl-inline-edit { display: grid; gap: 8px; }
-.tpl-inline-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.tpl-edit-input { width: 100%; min-height: 260px; padding: 14px; border: 1px solid var(--border-soft); border-radius: 9px; background: #0d131c; color: #c9d3e0; overflow: auto; font: 12.5px/1.55 "JetBrains Mono", Consolas, monospace; resize: vertical; }
-:root[data-theme="light"] .tpl-edit-input { background: #f4f6f9; border-color: #e2e8f0; color: #1f2937; }
+.tpl-inline-edit { display: grid; }
+.tpl-editor-overlay { position: relative; max-height: 60vh; overflow: auto; border: 1px solid var(--border-soft); border-radius: 9px; scrollbar-width: none; -ms-overflow-style: none; }
+.tpl-editor-overlay::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.tpl-editor-backdrop { position: absolute; top: 0; left: 0; right: 0; min-height: 100%; pointer-events: none; }
+.tpl-editor-backdrop .config-block { border: 0; border-radius: 0; max-height: none; }
+.tpl-editor-textarea {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  resize: none;
+  padding: 14px 14px 14px 60px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  font: 12.5px/1.55 "JetBrains Mono", Consolas, monospace;
+  white-space: pre;
+  border-radius: 9px;
+  box-sizing: border-box;
+}
+.tpl-editor-textarea::selection { background: rgba(54, 201, 143, .3); }
+:root[data-theme="light"] .tpl-editor-textarea { caret-color: #1f2937; }
+:root[data-theme="light"] .tpl-editor-textarea::selection { background: rgba(54, 201, 143, .35); }
 
 .config-block { margin: 0; padding: 14px; border: 1px solid var(--border-soft); border-radius: 9px; background: #0d131c; overflow: auto; font: 12.5px/1.55 "JetBrains Mono", Consolas, monospace; max-height: 60vh; }
 :root[data-theme="light"] .config-block { background: #f4f6f9; border-color: #e2e8f0; }

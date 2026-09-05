@@ -2,6 +2,7 @@ import { Copy, FileCode2, Pencil, Plus, Search, Trash2, Check, X } from 'lucide-
 import { useMemo, useState } from 'react'
 import { Modal } from '../components/Layout'
 import { ConfigHighlight } from '../components/ConfigHighlight'
+import { EditableConfig } from '../components/EditableConfig'
 import { useNetHelper } from '../store'
 import type { ConfigTemplate } from '../types'
 
@@ -53,20 +54,26 @@ function EditorModal({ template, onClose }: { template: ConfigTemplate | null; o
   </Modal>
 }
 
-function ViewCard({ template, highlight, onEdit }: { template: ConfigTemplate; highlight: string; onEdit: () => void }) {
+function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { template: ConfigTemplate; highlight: string; onEdit: () => void; editing: boolean; onEditingChange: (value: boolean) => void }) {
   const store = useNetHelper()
   const [copied, setCopied] = useState(false)
-  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(template.body)
 
   const enterEdit = () => {
     setDraft(template.body)
-    setEditing(true)
+    onEditingChange(true)
   }
 
-  const saveEdit = () => {
+  const saveAndCopy = async () => {
     if (draft !== template.body) store.updateConfigTemplate(template.id, { body: draft })
-    setEditing(false)
+    try {
+      await navigator.clipboard.writeText(draft)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* clipboard unavailable */
+    }
+    onEditingChange(false)
   }
 
   const copy = async () => {
@@ -87,29 +94,19 @@ function ViewCard({ template, highlight, onEdit }: { template: ConfigTemplate; h
         {template.description && <p className="page-subtitle">{template.description}</p>}
       </div>
       <div className="tpl-view-actions">
-        <button className="button" onClick={onEdit}><Pencil size={16} /> Изменить</button>
-        <button className="button danger-button" onClick={() => confirm('Удалить шаблон?') && store.deleteConfigTemplate(template.id)}><Trash2 size={16} /> Удалить</button>
+        <button className="button" onClick={onEdit} disabled={editing}><Pencil size={16} /> Изменить</button>
+        <button className="button danger-button" onClick={() => confirm('Удалить шаблон?') && store.deleteConfigTemplate(template.id)} disabled={editing}><Trash2 size={16} /> Удалить</button>
       </div>
     </div>
 
     <div className="tpl-output">
       <div className="tpl-output-head">
         <strong>Конфигурация <span className="tpl-hint">двойной клик — правка</span></strong>
-        <button className="button primary" onClick={copy}>{copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Скопировано' : 'Копировать'}</button>
+        <button className="button primary" onClick={editing ? saveAndCopy : copy}>{editing ? <Check size={16} /> : copied ? <Check size={16} /> : <Copy size={16} />} {editing ? 'Сохранить' : copied ? 'Скопировано' : 'Копировать'}</button>
       </div>
       {editing ? (
-        <div className="tpl-inline-edit">
-          <textarea
-            className="tpl-edit-input"
-            spellCheck={false}
-            autoFocus
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <div className="tpl-inline-actions">
-            <button className="button primary" onClick={saveEdit}><Check size={16} /> Сохранить</button>
-            <button className="button" onClick={() => setEditing(false)}><X size={16} /> Отмена</button>
-          </div>
+        <div className="tpl-inline-edit" onKeyDown={(event) => { if (event.key === 'Escape') onEditingChange(false) }}>
+          <EditableConfig value={draft} onChange={setDraft} highlight={highlight} />
         </div>
       ) : (
         <div onDoubleClick={enterEdit} className="tpl-config-wrap" title="Двойной клик для правки">
@@ -125,6 +122,7 @@ export function TemplatesPage() {
   const [query, setQuery] = useState('')
   const [vendor, setVendor] = useState<'all' | 'eltex' | 'cisco'>('all')
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
   const [editor, setEditor] = useState<{ mode: 'create' | 'edit'; template: ConfigTemplate | null } | null>(null)
 
   const active = templates.find((template) => template.id === activeId) ?? templates[0] ?? null
@@ -139,7 +137,7 @@ export function TemplatesPage() {
           || template.description.toLowerCase().includes(q)
           || template.body.toLowerCase().includes(q)
       })
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
   }, [templates, query, vendor])
 
   return <div className="templates-page">
@@ -159,8 +157,8 @@ export function TemplatesPage() {
 
         <div className="templates-list">
           {filtered.map((template) => (
-            <button key={template.id} className={`tpl-item ${active?.id === template.id ? 'active' : ''}`} onClick={() => setActiveId(template.id)}>
-              <span className="tpl-item-top"><span className="tpl-vendor-badge small">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span><span className="tpl-item-date">{new Date(template.updatedAt).toLocaleDateString()}</span></span>
+            <button key={template.id} className={`tpl-item ${active?.id === template.id ? 'active' : ''} ${inlineEditId && inlineEditId !== template.id ? 'disabled' : ''}`} onClick={() => { if (inlineEditId) return; setActiveId(template.id) }}>
+              <span className="tpl-item-top"><span className="tpl-vendor-badge small">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span></span>
               <strong>{template.title}</strong>
               {template.description && <span className="tpl-item-desc">{template.description}</span>}
             </button>
@@ -170,7 +168,7 @@ export function TemplatesPage() {
       </aside>
 
       {active ? (
-        <ViewCard template={active} highlight={query.trim()} onEdit={() => setEditor({ mode: 'edit', template: active })} />
+        <ViewCard key={active.id} template={active} highlight={query.trim()} onEdit={() => setEditor({ mode: 'edit', template: active })} editing={inlineEditId === active.id} onEditingChange={(value) => setInlineEditId(value ? active.id : null)} />
       ) : (
         <section className="tpl-view tpl-empty-state">
           <FileCode2 size={40} />
