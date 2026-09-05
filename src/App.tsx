@@ -6,6 +6,7 @@ import { Layout } from './components/Layout'
 import { CorePage } from './pages/CorePage'
 import { RacksPage } from './pages/RacksPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { TemplatesPage } from './pages/TemplatesPage'
 import { TopologyPage } from './pages/TopologyPage'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Route path="topology" element={<TopologyPage />} />
         <Route path="topology/:id" element={<TopologyPage />} />
         <Route path="core" element={<CorePage />} />
+        <Route path="templates" element={<TemplatesPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/racks" replace />} />
       </Route>

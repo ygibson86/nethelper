@@ -1,4 +1,4 @@
-import { Boxes, Cable, LogOut, Moon, Network, Settings, Sun } from 'lucide-react'
+import { Boxes, Cable, FileCode2, LogOut, Moon, Network, Settings, Sun } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useNetHelper } from '../store'
@@ -8,6 +8,7 @@ const pageNames: Record<string, string> = {
   racks: 'Шкафы',
   topology: 'Схемы',
   core: 'Core-коммутаторы',
+  templates: 'Шаблоны',
   settings: 'Настройки',
 }
 
@@ -30,6 +31,7 @@ export function Layout() {
           <NavLink to="/racks"><Boxes size={19} /> Шкафы</NavLink>
           <NavLink to="/topology"><Network size={19} /> Схемы</NavLink>
           <NavLink to="/core"><Cable size={19} /> Core-коммутаторы</NavLink>
+          <NavLink to="/templates"><FileCode2 size={19} /> Шаблоны</NavLink>
         </nav>
         <div className="sidebar-bottom">
           <NavLink to="/settings"><Settings size={19} /> Настройки</NavLink>
@@ -53,11 +55,12 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   onClose: () => void
+  className?: string
 }
 
-export function Modal({ title, children, onClose }: ModalProps) {
+export function Modal({ title, children, onClose, className }: ModalProps) {
   return <div className="modal-backdrop" onMouseDown={onClose}>
-    <section className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
+    <section className={className ? `modal ${className}` : 'modal'} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
       <div className="modal-header"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Закрыть">×</button></div>
       {children}
     </section>

@@ -1,10 +1,92 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AppData, AppSettings, CorePanel, Manufacturer, NetworkSwitch, Rack, Topology } from './types'
+import type { AppData, AppSettings, ConfigTemplate, CorePanel, Manufacturer, NetworkSwitch, Rack, Topology } from './types'
 import { importedRacks, importedSwitches } from './importedInfrastructure'
 import { applyCoreLayout, inferCoreRows } from './coreLayouts'
 
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+const importedTemplates: ConfigTemplate[] = [
+  {
+    id: 'tpl-cisco-access',
+    vendor: 'cisco',
+    title: 'Access-порт (Cisco)',
+    description: 'Настройка порта в access mode на коммутаторе Cisco',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+    body: `conf t
+!
+interface GigabitEthernet1/0/14
+ description PC-USER
+  switchport access vlan 930
+ switchport mode access
+ spanning-tree portfast
+!
+no shut
+!
+end
+!
+wr mem`,
+  },
+  {
+    id: 'tpl-eltex-access',
+    vendor: 'eltex',
+    title: 'Access-порт (Eltex)',
+    description: 'Настройка порта в access mode на коммутаторе Eltex',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+    body: `configure terminal
+!
+interface gigabitethernet 1/0/14
+ description PC-USER
+ switchport access vlan 930
+ switchport mode access
+ spanning-tree portfast
+!
+no shutdown
+!
+end
+!
+write memory`,
+  },
+  {
+    id: 'tpl-cisco-mac',
+    vendor: 'cisco',
+    title: 'Поиск по MAC (Cisco)',
+    description: 'Найти порт по MAC-адресу в таблице коммутации',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+    body: `show mac address-table address aabb.ccdd.eeff
+!
+show interfaces status | include aabb.ccdd.eeff`,
+  },
+  {
+    id: 'tpl-eltex-mac',
+    vendor: 'eltex',
+    title: 'Поиск по MAC (Eltex)',
+    description: 'Найти порт по MAC-адресу на коммутаторе Eltex',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+    body: `show mac address-table address aa:bb:cc:dd:ee:ff
+!
+show interfaces switchport | include aa:bb:cc:dd:ee:ff`,
+  },
+  {
+    id: 'tpl-cisco-trunk',
+    vendor: 'cisco',
+    title: 'Trunk-порт (Cisco)',
+    description: 'Настройка транкового порта к другому коммутатору',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+    body: `conf t
+!
+interface GigabitEthernet1/0/48
+ description UPLINK-CORE
+ switchport trunk allowed vlan 930,931,932
+ switchport mode trunk
+!
+no shut
+!
+end
+!
+wr mem`,
+  },
+]
 
 const initialData: AppData = {
   version: 7,
@@ -57,7 +139,9 @@ const initialData: AppData = {
    }],
   corePanels: [],
   settings: { theme: 'dark', fontSize: 15, portsPerRow: 24 },
+  configTemplates: importedTemplates,
 }
+
 
 interface NetHelperStore extends AppData {
   addRack: (name: string) => void
@@ -82,6 +166,9 @@ interface NetHelperStore extends AppData {
   updateManufacturer: (id: string, patch: Partial<Manufacturer>) => void
   deleteManufacturer: (id: string) => void
   updateSettings: (patch: Partial<AppSettings>) => void
+  addConfigTemplate: (input: Omit<ConfigTemplate, 'id' | 'updatedAt'>) => void
+  updateConfigTemplate: (id: string, patch: Partial<Omit<ConfigTemplate, 'id'>>) => void
+  deleteConfigTemplate: (id: string) => void
   replaceData: (data: AppData) => void
   resetData: () => void
 }
@@ -169,7 +256,10 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
     set((state) => ({ manufacturers: state.manufacturers.filter((item) => item.id !== id) }))
   },
   updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
-  replaceData: (data) => set({ ...data }),
+  addConfigTemplate: (input) => set((state) => ({ configTemplates: [...state.configTemplates, { ...input, id: uid('tpl'), updatedAt: new Date().toISOString() }] })),
+  updateConfigTemplate: (id, patch) => set((state) => ({ configTemplates: state.configTemplates.map((item) => item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item) })),
+  deleteConfigTemplate: (id) => set((state) => ({ configTemplates: state.configTemplates.filter((item) => item.id !== id) })),
+  replaceData: (data) => set({ ...data, configTemplates: Array.isArray(data.configTemplates) ? data.configTemplates : [] }),
   resetData: () => set({ ...initialData }),
 }), {
   name: 'nethelper-data',
@@ -203,6 +293,7 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
           })),
         }
       }),
+      configTemplates: Array.isArray(data.configTemplates) ? data.configTemplates : [],
     }
   },
 }))

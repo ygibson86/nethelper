@@ -13,6 +13,7 @@ function snapshot(state: AppData): AppData {
     topologies: state.topologies,
     corePanels: state.corePanels,
     settings: state.settings,
+    configTemplates: state.configTemplates,
   }
 }
 

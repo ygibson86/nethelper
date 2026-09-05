@@ -106,6 +106,15 @@ export interface AppSettings {
   portsPerRow: number
 }
 
+export interface ConfigTemplate {
+  id: string
+  vendor: 'eltex' | 'cisco'
+  title: string
+  description: string
+  body: string
+  updatedAt: string
+}
+
 export interface AppData {
   version: number
   manufacturers: Manufacturer[]
@@ -115,4 +124,5 @@ export interface AppData {
   topologies: Topology[]
   corePanels: CorePanel[]
   settings: AppSettings
+  configTemplates: ConfigTemplate[]
 }

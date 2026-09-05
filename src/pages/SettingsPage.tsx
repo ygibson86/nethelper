@@ -17,7 +17,7 @@ export function SettingsPage() {
   const toggleVendorType = (types: DeviceType[], type: DeviceType, checked: boolean) => checked ? [...new Set([...types, type])] : types.filter((item) => item !== type)
 
   const exportData = () => {
-    const data: AppData = { version: store.version, manufacturers: store.manufacturers, switches: store.switches, racks: store.racks, groups: store.groups, topologies: store.topologies, corePanels: store.corePanels, settings: store.settings }
+    const data: AppData = { version: store.version, manufacturers: store.manufacturers, switches: store.switches, racks: store.racks, groups: store.groups, topologies: store.topologies, corePanels: store.corePanels, settings: store.settings, configTemplates: store.configTemplates }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
