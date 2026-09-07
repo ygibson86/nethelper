@@ -128,7 +128,7 @@ JWT_TTL_SECONDS=28800
 PUBLIC_ORIGIN=https://nethelper.example.internal
 NETHELPER_PORT=8080
 
-SSH_ALLOWED_CIDRS=10.109.33.0/24,192.168.31.0/24
+SSH_ALLOWED_CIDRS=10.63.10.0/24,192.168.31.0/24
 SSH_PORT=22
 SSH_CONNECT_TIMEOUT_MS=12000
 SSH_IDLE_TIMEOUT_SECONDS=1800
@@ -180,13 +180,13 @@ PUBLIC_ORIGIN=https://nethelper.example.internal
 Используйте переменную `SSH_ALLOWED_CIDRS`. Подсети перечисляются через запятую без пробелов или с пробелами:
 
 ```env
-SSH_ALLOWED_CIDRS=10.109.33.0/24,192.168.31.0/24,172.16.50.0/24
+SSH_ALLOWED_CIDRS=10.63.10.0/24,192.168.31.0/24,172.16.50.0/24
 ```
 
 Пробелы вокруг значений автоматически удаляются:
 
 ```env
-SSH_ALLOWED_CIDRS=10.109.33.0/24, 192.168.31.0/24
+SSH_ALLOWED_CIDRS=10.63.10.0/24, 192.168.31.0/24
 ```
 
 Правила:
@@ -210,7 +210,7 @@ docker compose up -d --build api nethelper
 
 | Переменная | Назначение | Значение по умолчанию |
 |---|---|---:|
-| `SSH_ALLOWED_CIDRS` | Разрешённые IPv4-подсети через запятую | `10.109.33.0/24` |
+| `SSH_ALLOWED_CIDRS` | Разрешённые IPv4-подсети через запятую | `10.63.10.0/24/24` |
 | `SSH_PORT` | SSH-порт для всех подключений | `22` |
 | `SSH_CONNECT_TIMEOUT_MS` | Timeout установки SSH | `12000` |
 | `SSH_IDLE_TIMEOUT_SECONDS` | Завершение неактивной сессии | `1800` |
@@ -229,14 +229,14 @@ SSH-соединение устанавливает API-контейнер, а �
 Проверка маршрута с Docker-хоста:
 
 ```bash
-ip route get 10.109.33.10
-nc -vz -w 5 10.109.33.10 22
+ip route get 10.63.10.10
+nc -vz -w 5 10.63.10.10 22
 ```
 
 Проверка из API-контейнера:
 
 ```bash
-docker compose exec api node -e "const net=require('net');const s=net.createConnection({host:'10.109.33.10',port:22,timeout:5000},()=>{console.log('reachable');s.destroy()});s.on('timeout',()=>{console.log('timeout');s.destroy()});s.on('error',e=>console.log(e.code))"
+docker compose exec api node -e "const net=require('net');const s=net.createConnection({host:'10.63.10.10',port:22,timeout:5000},()=>{console.log('reachable');s.destroy()});s.on('timeout',()=>{console.log('timeout');s.destroy()});s.on('error',e=>console.log(e.code))"
 ```
 
 `ssh-egress` в Compose предоставляет API исходящий сетевой интерфейс, но не заменяет firewall. На production-хосте рекомендуется ограничить исходящий трафик API-контейнера разрешёнными подсетями и TCP/22 через nftables/iptables/DOCKER-USER.
