@@ -268,7 +268,19 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
   addConfigTemplate: (input) => set((state) => ({ configTemplates: [...state.configTemplates, { ...input, id: uid('tpl'), updatedAt: new Date().toISOString() }] })),
   updateConfigTemplate: (id, patch) => set((state) => ({ configTemplates: state.configTemplates.map((item) => item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item) })),
   deleteConfigTemplate: (id) => set((state) => ({ configTemplates: state.configTemplates.filter((item) => item.id !== id) })),
-  replaceData: (data) => set({ ...data, configTemplates: Array.isArray(data.configTemplates) ? data.configTemplates : [] }),
+  replaceData: (data) => {
+    const switchByIp = new Map<string, NetworkSwitch[]>()
+    data.switches.forEach((device) => { if (device.ip.trim()) switchByIp.set(device.ip.trim(), [...(switchByIp.get(device.ip.trim()) ?? []), device]) })
+    set({
+      ...data,
+      topologies: data.topologies.map((topology) => ({ ...topology, nodes: topology.nodes.map((node) => {
+        if (node.switchId || !node.ip?.trim()) return node
+        const matches = switchByIp.get(node.ip.trim()) ?? []
+        return matches.length === 1 ? { ...node, switchId: matches[0].id } : node
+      }) })),
+      configTemplates: Array.isArray(data.configTemplates) ? data.configTemplates : [],
+    })
+  },
   resetData: () => set({ ...initialData }),
 }), {
   name: 'nethelper-data',

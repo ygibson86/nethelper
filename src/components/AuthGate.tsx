@@ -63,8 +63,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const initialized = isUninitialized ? await saveServerData(initialData, result.revision) : result
       const parsed = parseAppData(initialized.data)
       if (!parsed.data) throw new Error(parsed.errors.join(' '))
+      const migrated = JSON.stringify(parsed.data) !== JSON.stringify(initialized.data) ? await saveServerData(parsed.data, initialized.revision) : initialized
       replaceData(parsed.data)
-      serverRevision.current = initialized.revision
+      serverRevision.current = migrated.revision
       pendingChanges.current = false
       setSaveState({ status: 'saved' })
       setStatus('ready')

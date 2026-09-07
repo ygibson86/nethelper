@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { AlertTriangle, KeyRound, Plug, RotateCcw, SquareTerminal } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { useNetHelper } from '../store'
 
 type TerminalStatus = 'idle' | 'connecting' | 'connected' | 'closed' | 'error'
@@ -11,9 +11,11 @@ type ServerMessage = { type: string; data?: string; encoding?: string; message?:
 
 export function SshTerminalPage() {
   const { deviceId = '' } = useParams()
+  const location = useLocation()
+  const presetHost = new URLSearchParams(location.search).get('host') ?? ''
   const manual = !deviceId
   const device = useNetHelper((state) => state.switches.find((item) => item.id === deviceId))
-  const [host, setHost] = useState('')
+  const [host, setHost] = useState(presetHost)
   const terminalHost = useRef<HTMLDivElement>(null)
   const terminal = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)

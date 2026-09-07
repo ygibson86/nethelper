@@ -44,11 +44,25 @@ export function parseAppData(input: unknown): { data?: AppData; errors: string[]
   if (!Number.isInteger(input.version) || Number(input.version) <= 0) errors.push('Не указана корректная версия формата данных.')
   if (errors.length || !manufacturers || !switches || !racks || !topologies || !corePanels || !settings || !Array.isArray(templates)) return { errors }
 
+  const switchByIp = new Map<string, typeof switches>()
+  switches.forEach((device) => {
+    const ip = String((device as Record<string, unknown>).ip).trim()
+    if (ip) switchByIp.set(ip, [...(switchByIp.get(ip) ?? []), device])
+  })
+  const normalizedTopologies = topologies.map((topology) => ({
+    ...topology,
+    nodes: ((topology as Record<string, unknown>).nodes as Record<string, unknown>[]).map((node) => {
+      if (node.switchId || typeof node.ip !== 'string' || !node.ip.trim()) return node
+      const matches = switchByIp.get(node.ip.trim()) ?? []
+      return matches.length === 1 ? { ...node, switchId: String((matches[0] as Record<string, unknown>).id) } : node
+    }),
+  }))
   const normalized = {
     ...input,
     groups: groups ?? [...new Set(racks.map((rack) => String((rack as Record<string, unknown>).group)).filter(Boolean))],
     settings: { ...settings, portsPerRow: typeof settings.portsPerRow === 'number' ? settings.portsPerRow : 24 },
     switches: switches.map((item) => ({ ...item, accessMethods: Array.isArray((item as Record<string, unknown>).accessMethods) ? (item as Record<string, unknown>).accessMethods : [] })),
+    topologies: normalizedTopologies,
     corePanels: corePanels.map((panel) => ({ ...panel, rows: Array.isArray((panel as Record<string, unknown>).rows) ? (panel as Record<string, unknown>).rows : [], layoutTemplate: (panel as Record<string, unknown>).layoutTemplate ?? (((panel as Record<string, unknown>).ports as unknown[]).length === 56 ? 'stacked-56' : 'single-28') })),
     configTemplates: templates,
   }
