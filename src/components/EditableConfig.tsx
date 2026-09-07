@@ -19,6 +19,7 @@ export function EditableConfig({ value, onChange, highlight }: { value: string; 
       <textarea
         ref={textareaRef}
         className="tpl-editor-textarea"
+        aria-label="Текст конфигурации"
         spellCheck={false}
         autoFocus
         value={value}

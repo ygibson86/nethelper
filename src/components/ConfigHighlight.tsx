@@ -31,7 +31,7 @@ function tokenizeLine(line: string): ReactNode[] {
       continue
     }
 
-    const macAddr = /^(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}|(?:[0-9a-f]{4}\.){2}[0-9a-f]{4}/i.exec(rest)
+    const macAddr = /^(?:(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}|(?:[0-9a-f]{4}\.){2}[0-9a-f]{4})/i.exec(rest)
     if (macAddr) {
       nodes.push(<span key={key++} className="cfg-mac">{macAddr[0]}</span>)
       index += macAddr[0].length
@@ -65,9 +65,9 @@ export function ConfigHighlight({ text, highlight }: { text: string; highlight?:
               <div key={i} className="config-line">
                 <span className="config-lineno">{i + 1}</span>
                 <span>
-                  {line.slice(0, pos)}
+                  {tokenizeLine(line.slice(0, pos))}
                   <mark className="cfg-hl">{line.slice(pos, pos + highlight!.length)}</mark>
-                  {line.slice(pos + highlight!.length)}
+                  {tokenizeLine(line.slice(pos + highlight!.length))}
                 </span>
               </div>
             )

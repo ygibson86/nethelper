@@ -2,6 +2,7 @@ import { Download, Moon, Plus, RotateCcw, Sun, Trash2, Upload } from 'lucide-rea
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNetHelper } from '../store'
 import type { AppData, DeviceType } from '../types'
+import { parseAppData } from '../dataValidation'
 
 const vendorDeviceTypes: { value: DeviceType; label: string }[] = [
   { value: 'switch', label: 'Коммутаторы' }, { value: 'router', label: 'Маршрутизаторы' }, { value: 'server', label: 'Серверы' }, { value: 'pc', label: 'Компьютеры' }, { value: 'firewall', label: 'Межсетевые экраны' }, { value: 'access-point', label: 'Точки доступа' }, { value: 'phone', label: 'IP-телефоны' }, { value: 'camera', label: 'Камеры' }, { value: 'ups', label: 'ИБП' }, { value: 'nas', label: 'NAS' }, { value: 'printer', label: 'Принтеры' }, { value: 'patch-panel', label: 'Патч-панели' },
@@ -32,9 +33,9 @@ export function SettingsPage() {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const data = JSON.parse(String(reader.result)) as AppData
-        if (!Array.isArray(data.racks) || !Array.isArray(data.switches) || !Array.isArray(data.topologies) || !data.settings) throw new Error('Некорректная структура')
-        if (confirm('Импорт заменит все текущие данные. Продолжить?')) store.replaceData(data)
+        const parsed = parseAppData(JSON.parse(String(reader.result)))
+        if (!parsed.data) throw new Error(parsed.errors.join('\n'))
+        if (confirm('Импорт заменит все текущие данные. Продолжить?')) store.replaceData(parsed.data)
       } catch {
         alert('Не удалось импортировать файл: формат резервной копии некорректен.')
       }
@@ -54,22 +55,22 @@ export function SettingsPage() {
     <div className="settings-grid">
       <section className="settings-card">
         <div className="settings-card-title"><div><h2>Внешний вид</h2><p>Глобальные параметры интерфейса</p></div></div>
-        <div className="setting-row"><div><strong>Тема</strong><span>Цветовая схема приложения</span></div><div className="segmented"><button className={store.settings.theme === 'dark' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'dark' })}><Moon size={16} /> Тёмная</button><button className={store.settings.theme === 'light' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'light' })}><Sun size={16} /> Светлая</button></div></div>
-        <div className="setting-row"><div><strong>Размер шрифта</strong><span>{store.settings.fontSize} px</span></div><input type="range" min="13" max="18" value={store.settings.fontSize} onChange={(event) => store.updateSettings({ fontSize: Number(event.target.value) })} /></div>
+        <div className="setting-row"><div><strong>Тема</strong><span>Цветовая схема приложения</span></div><div className="segmented"><button aria-pressed={store.settings.theme === 'dark'} className={store.settings.theme === 'dark' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'dark' })}><Moon size={16} /> Тёмная</button><button aria-pressed={store.settings.theme === 'light'} className={store.settings.theme === 'light' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'light' })}><Sun size={16} /> Светлая</button></div></div>
+        <div className="setting-row"><div><strong>Размер шрифта</strong><span>{store.settings.fontSize} px</span></div><input aria-label="Размер шрифта интерфейса" type="range" min="13" max="18" value={store.settings.fontSize} onChange={(event) => store.updateSettings({ fontSize: Number(event.target.value) })} /></div>
       </section>
       <section className="settings-card vendors-card">
         <div className="settings-card-title"><div><h2>Производители</h2><p>Цвета и короткие обозначения оборудования</p></div></div>
         <div className="vendor-list">{store.manufacturers.map((item) => {
-          const inUse = store.switches.some((device) => device.manufacturerId === item.id)
+          const inUse = store.switches.some((device) => device.manufacturerId === item.id) || store.topologies.some((topology) => topology.nodes.some((node) => node.manufacturerId === item.id))
           return <div className="vendor-row" key={item.id}>
-             <input aria-label="Цвет" type="color" value={item.color} onChange={(event) => store.updateManufacturer(item.id, { color: event.target.value })} />
-             <input value={item.abbreviation} maxLength={3} onChange={(event) => store.updateManufacturer(item.id, { abbreviation: event.target.value.toUpperCase() })} />
-             <input value={item.name} onChange={(event) => store.updateManufacturer(item.id, { name: event.target.value })} title={item.deviceTypes.map((type) => vendorDeviceTypes.find((entry) => entry.value === type)?.label).filter(Boolean).join(', ')} />
+             <input aria-label={`Цвет производителя ${item.name}`} type="color" value={item.color} onChange={(event) => store.updateManufacturer(item.id, { color: event.target.value })} />
+             <input aria-label={`Сокращение производителя ${item.name}`} value={item.abbreviation} maxLength={3} onChange={(event) => store.updateManufacturer(item.id, { abbreviation: event.target.value.toUpperCase() })} />
+             <input aria-label={`Название производителя ${item.name}`} value={item.name} onChange={(event) => store.updateManufacturer(item.id, { name: event.target.value })} title={item.deviceTypes.map((type) => vendorDeviceTypes.find((entry) => entry.value === type)?.label).filter(Boolean).join(', ')} />
              <button className="icon-button danger" disabled={inUse} title={inUse ? 'Производитель используется' : 'Удалить'} onClick={() => store.deleteManufacturer(item.id)}><Trash2 size={16} /></button>
              <div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={item.deviceTypes.includes(type.value)} onChange={(event) => store.updateManufacturer(item.id, { deviceTypes: toggleVendorType(item.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div>
            </div>
         })}</div>
-        <form className="vendor-add" onSubmit={addVendor}><input type="color" value={vendor.color} onChange={(event) => setVendor({ ...vendor, color: event.target.value })} /><input required maxLength={3} placeholder="Код" value={vendor.abbreviation} onChange={(event) => setVendor({ ...vendor, abbreviation: event.target.value })} /><input required placeholder="Название" value={vendor.name} onChange={(event) => setVendor({ ...vendor, name: event.target.value })} /><button className="button primary"><Plus size={16} /> Добавить</button><div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={vendor.deviceTypes.includes(type.value)} onChange={(event) => setVendor({ ...vendor, deviceTypes: toggleVendorType(vendor.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div></form>
+        <form className="vendor-add" onSubmit={addVendor}><input aria-label="Цвет нового производителя" type="color" value={vendor.color} onChange={(event) => setVendor({ ...vendor, color: event.target.value })} /><input aria-label="Сокращение нового производителя" required maxLength={3} placeholder="Код" value={vendor.abbreviation} onChange={(event) => setVendor({ ...vendor, abbreviation: event.target.value })} /><input aria-label="Название нового производителя" required placeholder="Название" value={vendor.name} onChange={(event) => setVendor({ ...vendor, name: event.target.value })} /><button className="button primary"><Plus size={16} /> Добавить</button><div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={vendor.deviceTypes.includes(type.value)} onChange={(event) => setVendor({ ...vendor, deviceTypes: toggleVendorType(vendor.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div></form>
       </section>
       <section className="settings-card backup-card">
         <div className="settings-card-title"><div><h2>Резервная копия</h2><p>Все данные сохраняются в одном JSON-файле</p></div></div>

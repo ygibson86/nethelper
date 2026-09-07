@@ -1,8 +1,19 @@
 import type { AppData } from './types'
 
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message = `HTTP ${status}`) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function request(path: string, options: RequestInit = {}) {
-  const response = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...options.headers }, ...options })
-  if (!response.ok) throw new Error(`${response.status}`)
+  const headers = options.body ? { 'Content-Type': 'application/json', ...options.headers } : options.headers
+  const response = await fetch(path, { credentials: 'same-origin', ...options, headers })
+  if (!response.ok) throw new ApiError(response.status)
   return response.json() as Promise<unknown>
 }
 
@@ -19,9 +30,9 @@ export async function logout() {
 }
 
 export async function getServerData() {
-  return request('/api/data') as Promise<{ data: AppData; updatedAt: string }>
+  return request('/api/data') as Promise<{ data: AppData; updatedAt: string; revision: number }>
 }
 
-export async function saveServerData(data: AppData) {
-  return request('/api/data', { method: 'PUT', body: JSON.stringify(data) }) as Promise<{ data: AppData; updatedAt: string }>
+export async function saveServerData(data: AppData, revision: number) {
+  return request('/api/data', { method: 'PUT', headers: { 'If-Match': `"${revision}"` }, body: JSON.stringify(data) }) as Promise<{ data: AppData; updatedAt: string; revision: number }>
 }

@@ -162,6 +162,7 @@ interface NetHelperStore extends AppData {
   deleteTopology: (id: string) => void
   addCorePanel: (switchId: string, portCount: number) => void
   updateCorePanel: (id: string, patch: Partial<CorePanel>) => void
+  deleteCorePanel: (id: string) => void
   addManufacturer: (input: Omit<Manufacturer, 'id'>) => void
   updateManufacturer: (id: string, patch: Partial<Manufacturer>) => void
   deleteManufacturer: (id: string) => void
@@ -216,6 +217,7 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
     switches: state.switches.filter((item) => item.id !== id),
     racks: state.racks.map((rack) => ({ ...rack, switchIds: rack.switchIds.filter((switchId) => switchId !== id) })),
     corePanels: state.corePanels.filter((panel) => panel.switchId !== id),
+    topologies: state.topologies.map((topology) => ({ ...topology, nodes: topology.nodes.map((node) => node.switchId === id ? { ...node, switchId: undefined } : node) })),
   })),
   moveSwitch: (rackId, switchId, direction) => set((state) => ({ racks: state.racks.map((rack) => {
     if (rack.id !== rackId) return rack
@@ -249,10 +251,17 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
     return { corePanels: [...state.corePanels, { ...panel, ...applyCoreLayout(panel, panel.layoutTemplate as 'single-28' | 'stacked-56') }] }
   }),
   updateCorePanel: (id, patch) => set((state) => ({ corePanels: state.corePanels.map((panel) => panel.id === id ? { ...panel, ...patch } : panel) })),
+  deleteCorePanel: (id) => set((state) => ({ corePanels: state.corePanels.filter((panel) => panel.id !== id) })),
   addManufacturer: (input) => set((state) => ({ manufacturers: [...state.manufacturers, { ...input, id: uid('vendor') }] })),
-  updateManufacturer: (id, patch) => set((state) => ({ manufacturers: state.manufacturers.map((item) => item.id === id ? { ...item, ...patch } : item) })),
+  updateManufacturer: (id, patch) => set((state) => {
+    const previous = state.manufacturers.find((item) => item.id === id)
+    return {
+      manufacturers: state.manufacturers.map((item) => item.id === id ? { ...item, ...patch } : item),
+      topologies: patch.color && previous ? state.topologies.map((topology) => ({ ...topology, nodes: topology.nodes.map((node) => node.manufacturerId === id && node.color === previous.color ? { ...node, color: patch.color! } : node) })) : state.topologies,
+    }
+  }),
   deleteManufacturer: (id) => {
-    if (get().switches.some((item) => item.manufacturerId === id)) return
+    if (get().switches.some((item) => item.manufacturerId === id) || get().topologies.some((topology) => topology.nodes.some((node) => node.manufacturerId === id))) return
     set((state) => ({ manufacturers: state.manufacturers.filter((item) => item.id !== id) }))
   },
   updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),

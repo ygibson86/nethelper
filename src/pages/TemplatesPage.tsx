@@ -17,9 +17,13 @@ function EditorModal({ template, onClose }: { template: ConfigTemplate | null; o
   const [title, setTitle] = useState(template?.title ?? '')
   const [description, setDescription] = useState(template?.description ?? '')
   const [body, setBody] = useState(template?.body ?? '')
+  const [titleError, setTitleError] = useState('')
 
   const save = () => {
-    if (!title.trim()) return
+    if (!title.trim()) {
+      setTitleError('Укажите заголовок шаблона.')
+      return
+    }
     const payload = {
       vendor,
       title: title.trim(),
@@ -32,14 +36,14 @@ function EditorModal({ template, onClose }: { template: ConfigTemplate | null; o
   }
 
   return <Modal title={template ? 'Править шаблон' : 'Новый шаблон'} onClose={onClose} className="tpl-editor-modal">
-    <div className="tpl-editor">
+    <form className="tpl-editor" onSubmit={(event) => { event.preventDefault(); save() }}>
       <div className="tpl-editor-fields">
         <label>Вендор
           <div className="segmented">
-            {vendors.map((vendorItem) => <button key={vendorItem.value} className={vendor === vendorItem.value ? 'active' : ''} onClick={() => setVendor(vendorItem.value)}>{vendorItem.label}</button>)}
+            {vendors.map((vendorItem) => <button type="button" aria-pressed={vendor === vendorItem.value} key={vendorItem.value} className={vendor === vendorItem.value ? 'active' : ''} onClick={() => setVendor(vendorItem.value)}>{vendorItem.label}</button>)}
           </div>
         </label>
-        <label>Заголовок<input value={title} placeholder="Например, Access-порт" onChange={(event) => setTitle(event.target.value)} /></label>
+        <label>Заголовок<input required aria-invalid={Boolean(titleError)} aria-describedby={titleError ? 'template-title-error' : undefined} value={title} placeholder="Например, Access-порт" onChange={(event) => { setTitle(event.target.value); setTitleError('') }} />{titleError && <span id="template-title-error" className="field-error" role="alert">{titleError}</span>}</label>
         <label>Описание<input value={description} placeholder="Краткое описание шаблона" onChange={(event) => setDescription(event.target.value)} /></label>
         <label>Текст шаблона
           <textarea rows={14} className="tpl-body-input" spellCheck={false} value={body} onChange={(event) => setBody(event.target.value)} placeholder={'conf t\n!\ninterface GigabitEthernet1/0/14\n...'} />
@@ -47,16 +51,17 @@ function EditorModal({ template, onClose }: { template: ConfigTemplate | null; o
       </div>
 
       <div className="tpl-toolbar">
-        <button className="button primary" onClick={save}><Check size={16} /> Сохранить</button>
-        <button className="button" onClick={onClose}><X size={16} /> Отмена</button>
+        <button type="submit" className="button primary"><Check size={16} /> Сохранить</button>
+        <button type="button" className="button" onClick={onClose}><X size={16} /> Отмена</button>
       </div>
-    </div>
+    </form>
   </Modal>
 }
 
 function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { template: ConfigTemplate; highlight: string; onEdit: () => void; editing: boolean; onEditingChange: (value: boolean) => void }) {
   const store = useNetHelper()
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
   const [draft, setDraft] = useState(template.body)
 
   const enterEdit = () => {
@@ -68,10 +73,11 @@ function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { t
     if (draft !== template.body) store.updateConfigTemplate(template.id, { body: draft })
     try {
       await navigator.clipboard.writeText(draft)
+      setCopyError('')
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      /* clipboard unavailable */
+      setCopyError('Не удалось скопировать конфигурацию. Разрешите доступ к буферу обмена.')
     }
     onEditingChange(false)
   }
@@ -79,10 +85,11 @@ function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { t
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(template.body)
+      setCopyError('')
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      /* clipboard unavailable */
+      setCopyError('Не удалось скопировать конфигурацию. Разрешите доступ к буферу обмена.')
     }
   }
 
@@ -103,13 +110,15 @@ function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { t
       <div className="tpl-output-head">
         <strong>Конфигурация <span className="tpl-hint">двойной клик — правка</span></strong>
         <button className="button primary" onClick={editing ? saveAndCopy : copy}>{editing ? <Check size={16} /> : copied ? <Check size={16} /> : <Copy size={16} />} {editing ? 'Сохранить' : copied ? 'Скопировано' : 'Копировать'}</button>
+        <span className="sr-status" aria-live="polite">{copied ? 'Конфигурация скопирована' : ''}</span>
       </div>
+      {copyError && <p className="field-error" role="alert">{copyError}</p>}
       {editing ? (
         <div className="tpl-inline-edit" onKeyDown={(event) => { if (event.key === 'Escape') onEditingChange(false) }}>
           <EditableConfig value={draft} onChange={setDraft} highlight={highlight} />
         </div>
       ) : (
-        <div onDoubleClick={enterEdit} className="tpl-config-wrap" title="Двойной клик для правки">
+        <div onDoubleClick={enterEdit} onKeyDown={(event) => { if (event.key === 'Enter') enterEdit() }} tabIndex={0} role="button" aria-label="Редактировать конфигурацию" className="tpl-config-wrap" title="Двойной клик для правки">
           <ConfigHighlight text={template.body} highlight={highlight} />
         </div>
       )}
@@ -125,8 +134,6 @@ export function TemplatesPage() {
   const [inlineEditId, setInlineEditId] = useState<string | null>(null)
   const [editor, setEditor] = useState<{ mode: 'create' | 'edit'; template: ConfigTemplate | null } | null>(null)
 
-  const active = templates.find((template) => template.id === activeId) ?? templates[0] ?? null
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return templates
@@ -139,6 +146,7 @@ export function TemplatesPage() {
       })
       .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
   }, [templates, query, vendor])
+  const active = filtered.find((template) => template.id === activeId) ?? filtered[0] ?? null
 
   return <div className="templates-page">
     <header className="page-header"><div><p className="eyebrow">Библиотека</p><h1>Шаблоны</h1><p className="page-subtitle">Готовые конфигурации Cisco и Eltex для копирования</p></div></header>
@@ -146,11 +154,11 @@ export function TemplatesPage() {
     <div className="templates-layout">
       <aside className="templates-sidebar">
         <div className="templates-toolbar">
-          <div className="search-box"><Search size={16} /><input placeholder="Поиск по шаблонам..." value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+          <div className="search-box"><Search size={16} /><input disabled={Boolean(inlineEditId)} aria-label="Поиск по шаблонам" placeholder="Поиск по шаблонам..." value={query} onChange={(event) => setQuery(event.target.value)} /></div>
           <div className="segmented">
-            <button className={vendor === 'all' ? 'active' : ''} onClick={() => setVendor('all')}>Все</button>
-            <button className={vendor === 'eltex' ? 'active' : ''} onClick={() => setVendor('eltex')}>Eltex</button>
-            <button className={vendor === 'cisco' ? 'active' : ''} onClick={() => setVendor('cisco')}>Cisco</button>
+            <button disabled={Boolean(inlineEditId)} aria-pressed={vendor === 'all'} className={vendor === 'all' ? 'active' : ''} onClick={() => setVendor('all')}>Все</button>
+            <button disabled={Boolean(inlineEditId)} aria-pressed={vendor === 'eltex'} className={vendor === 'eltex' ? 'active' : ''} onClick={() => setVendor('eltex')}>Eltex</button>
+            <button disabled={Boolean(inlineEditId)} aria-pressed={vendor === 'cisco'} className={vendor === 'cisco' ? 'active' : ''} onClick={() => setVendor('cisco')}>Cisco</button>
           </div>
           <button className="button primary" onClick={() => setEditor({ mode: 'create', template: null })}><Plus size={16} /> Новый шаблон</button>
         </div>
