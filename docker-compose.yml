@@ -29,6 +29,7 @@ services:
       - "3000"
     networks:
       - internal
+      - ssh-egress
 
   nethelper:
     build:
@@ -61,4 +62,6 @@ networks:
   internal:
     internal: true
   public:
+    driver: bridge
+  ssh-egress:
     driver: bridge

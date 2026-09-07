@@ -19,8 +19,6 @@
 .save-dirty .status-dot, .save-saving .status-dot { background: #f59e0b; box-shadow: 0 0 7px #f59e0b; }
 .save-error, .save-conflict { color: var(--danger) !important; }.save-error .status-dot, .save-conflict .status-dot { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
 .main-content { grid-column: 2; padding: 23px 30px 44px; min-width: 0; }
-.breadcrumbs { display: flex; gap: 8px; color: var(--faint); font-size: .74rem; margin-bottom: 25px; }
-.breadcrumbs span:last-child { color: var(--muted); }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 25px; }
 .page-header.compact { align-items: center; margin-bottom: 17px; }
 .eyebrow { margin: 0 0 6px; color: var(--accent); font-weight: 700; font-size: .68rem; letter-spacing: .13em; text-transform: uppercase; }
@@ -77,7 +75,7 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .vendor-badge { position: absolute; left: 8px; top: 10px; width: 21px; height: 21px; display: grid; place-items: center; color: #fff; background: var(--vendor); border-radius: 4px; font-size: .59rem; font-weight: 700; }
 .switch-info { min-width: 0; display: grid; gap: 1px; }
 .switch-info strong { color: var(--text); font-size: .78rem; letter-spacing: .01em; }
-.switch-info span { color: var(--accent); font: 500 .61rem "JetBrains Mono", monospace; }
+.switch-info span { color: var(--accent); font: 600 .76rem/1.35 "JetBrains Mono", monospace; letter-spacing: .01em; }
 .switch-info small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .59rem; }
 .switch-card.highlighted { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .switch-card.dragging { opacity: .45; }
@@ -231,6 +229,13 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .backup-card { grid-column: 1 / -1; }.backup-actions { display: flex; gap: 8px; padding: 16px 0; }.backup-stats { display: flex; gap: 30px; padding-top: 13px; border-top: 1px solid var(--border-soft); color: var(--muted); font-size: .68rem; }.backup-stats strong { color: var(--text); font-size: .9rem; margin-right: 3px; }
 .danger-zone { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-color: rgba(240,100,100,.3); }
 
+/* SSH terminal */
+.ssh-terminal-page { display: grid; gap: 16px; }
+.ssh-status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .78rem; }.ssh-status > span { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }.ssh-status.status-connecting > span { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }.ssh-status.status-connected > span { background: var(--accent); box-shadow: 0 0 8px var(--accent); }.ssh-status.status-error > span { background: var(--danger); }
+.ssh-login-card { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)) auto; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }.ssh-login-card label { display: grid; gap: 6px; color: var(--muted); font-size: .75rem; font-weight: 600; }.ssh-login-title { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; color: var(--accent); }.ssh-login-title > div { display: grid; gap: 3px; }.ssh-login-title strong { color: var(--text); }.ssh-login-title span { color: var(--muted); font-size: .72rem; }
+.ssh-console { overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #0d131c; box-shadow: var(--shadow); }.ssh-console-toolbar { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 12px; border-bottom: 1px solid #283344; color: #aab5c5; background: #131a24; }.ssh-console-toolbar > span { display: flex; align-items: center; gap: 7px; font-size: .72rem; }.ssh-console-toolbar .button { min-height: 31px; }.ssh-terminal-host { height: calc(100vh - 300px); min-height: 420px; padding: 9px; }.ssh-terminal-host .xterm { height: 100%; }
+.ssh-warning { display: flex; gap: 13px; padding: 15px; border: 1px solid #d69b2d; border-radius: 8px; color: #d69b2d; background: color-mix(in srgb, #d69b2d 10%, var(--surface)); }.ssh-warning.danger { border-color: var(--danger); color: var(--danger); }.ssh-warning > div { min-width: 0; display: grid; gap: 8px; }.ssh-warning p { color: var(--muted); font-size: .77rem; }.ssh-warning code { overflow-wrap: anywhere; padding: 8px; border-radius: 5px; color: var(--text); background: var(--surface-2); }.ssh-warning-actions { display: flex; flex-wrap: wrap; gap: 8px; }.ssh-error { padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent); border-radius: 7px; color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); font-size: .78rem; }
+
 /* ===== Templates page ===== */
 .templates-page { display: grid; gap: 20px; }
 .templates-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; min-height: 0; }
@@ -344,7 +349,6 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
   .sidebar { z-index: 20; width: min(280px, 86vw); visibility: hidden; transform: translateX(-105%); transition: transform .2s ease, visibility .2s; }
   .sidebar.open { visibility: visible; transform: translateX(0); }
   .main-content { padding: 70px 16px 32px; }
-  .breadcrumbs { margin-bottom: 18px; }
   .page-header, .page-header.compact { align-items: flex-start; flex-direction: column; gap: 16px; }
   .toolbar { width: 100%; flex-wrap: wrap; }
   .racks-grid, .settings-grid { grid-template-columns: 1fr; }
@@ -356,6 +360,7 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
   .danger-zone { align-items: flex-start; flex-direction: column; gap: 15px; }
   .backup-actions, .backup-stats { flex-wrap: wrap; }
   .node-inspector { right: 16px; bottom: 16px; width: min(280px, calc(100vw - 32px)); }
+  .ssh-login-card { grid-template-columns: 1fr; }.ssh-login-title { grid-column: auto; }.ssh-terminal-host { height: 60vh; min-height: 380px; }
 }
 
 @media (max-width: 520px) {

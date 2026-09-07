@@ -2,10 +2,12 @@ import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cookie from '@fastify/cookie'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
+import websocket from '@fastify/websocket'
 import { z } from 'zod'
 import { config, secureCookies } from './config.js'
-import { createSession, validatePassword, verifySession } from './auth.js'
+import { createSession, getSessionPayload, validatePassword, verifySession } from './auth.js'
 import { db, initializeDatabase } from './db.js'
+import { closeSshSessions, registerSsh } from './ssh.js'
 
 const cookieName = 'nethelper_session'
 const id = z.string().min(1).max(256)
@@ -30,12 +32,16 @@ const app = Fastify({ logger: true, trustProxy: true, bodyLimit: 2 * 1024 * 1024
 await app.register(cookie)
 await app.register(helmet, { contentSecurityPolicy: false })
 await app.register(rateLimit, { global: false })
+await app.register(websocket)
 
 async function requireAuth(request: FastifyRequest) {
-  if (await verifySession(request.cookies[cookieName])) return
-  const error = new Error('Unauthorized') as Error & { statusCode: number }
-  error.statusCode = 401
-  throw error
+  try {
+    return await getSessionPayload(request.cookies[cookieName])
+  } catch {
+    const error = new Error('Unauthorized') as Error & { statusCode: number }
+    error.statusCode = 401
+    throw error
+  }
 }
 
 function setSessionCookie(reply: FastifyReply) {
@@ -86,9 +92,11 @@ app.put('/api/data', async (request, reply) => {
 })
 
 await initializeDatabase()
+await registerSsh(app, requireAuth)
 await app.listen({ host: '0.0.0.0', port: 3000 })
 
 const shutdown = async () => {
+  closeSshSessions()
   await app.close()
   await db.end()
 }

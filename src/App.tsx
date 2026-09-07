@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import '@xyflow/react/dist/style.css'
 import './App.css'
@@ -8,6 +9,8 @@ import { RacksPage } from './pages/RacksPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { TopologyPage } from './pages/TopologyPage'
+
+const SshTerminalPage = lazy(() => import('./pages/SshTerminalPage').then((module) => ({ default: module.SshTerminalPage })))
 
 function App() {
   return <AuthGate><HashRouter>
@@ -20,6 +23,8 @@ function App() {
         <Route path="core" element={<CorePage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="terminal" element={<Suspense fallback={<div className="login-loading" role="status">Загрузка терминала…</div>}><SshTerminalPage /></Suspense>} />
+        <Route path="terminal/:deviceId" element={<Suspense fallback={<div className="login-loading" role="status">Загрузка терминала…</div>}><SshTerminalPage /></Suspense>} />
         <Route path="*" element={<Navigate to="/racks" replace />} />
       </Route>
     </Routes>

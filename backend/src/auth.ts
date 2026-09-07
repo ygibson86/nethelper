@@ -29,3 +29,10 @@ export async function verifySession(token: string | undefined) {
     return false
   }
 }
+
+export async function getSessionPayload(token: string | undefined) {
+  if (!token) throw new Error('Unauthorized')
+  const result = await jwtVerify(token, secret, { issuer, audience })
+  if (result.payload.role !== 'admin') throw new Error('Unauthorized')
+  return result.payload
+}

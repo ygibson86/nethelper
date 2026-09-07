@@ -1,4 +1,4 @@
-import { Boxes, Cable, FileCode2, LogOut, Menu, Moon, Network, Settings, Sun, X } from 'lucide-react'
+import { Boxes, Cable, FileCode2, LogOut, Menu, Moon, Network, Settings, SquareTerminal, Sun, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNetHelper } from '../store'
@@ -11,18 +11,17 @@ const pageNames: Record<string, string> = {
   core: 'Core-коммутаторы',
   templates: 'Шаблоны',
   settings: 'Настройки',
+  terminal: 'SSH-терминал',
 }
 
 export function Layout() {
   const settings = useNetHelper((state) => state.settings)
   const updateSettings = useNetHelper((state) => state.updateSettings)
-  const topologies = useNetHelper((state) => state.topologies)
   const location = useLocation()
   const saveState = useSaveState()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
-  const parts = location.pathname.split('/').filter(Boolean)
   const saveLabel = saveState.status === 'saving' ? 'Сохранение…' : saveState.status === 'dirty' ? 'Есть несохранённые изменения' : saveState.status === 'error' ? 'Ошибка сохранения' : saveState.status === 'conflict' ? 'Конфликт изменений' : 'Все изменения сохранены'
   const recoveryData = () => {
     const state = useNetHelper.getState()
@@ -95,6 +94,7 @@ export function Layout() {
           <NavLink to="/topology" onClick={() => setMobileNavOpen(false)}><Network size={19} /> Схемы</NavLink>
           <NavLink to="/core" onClick={() => setMobileNavOpen(false)}><Cable size={19} /> Core-коммутаторы</NavLink>
           <NavLink to="/templates" onClick={() => setMobileNavOpen(false)}><FileCode2 size={19} /> Шаблоны</NavLink>
+          <NavLink to="/terminal" target="_blank" rel="noopener" onClick={() => setMobileNavOpen(false)}><SquareTerminal size={19} /> Терминал</NavLink>
         </nav>
         <div className="sidebar-bottom">
           <NavLink to="/settings" onClick={() => setMobileNavOpen(false)}><Settings size={19} /> Настройки</NavLink>
@@ -110,7 +110,6 @@ export function Layout() {
         </div>
       </aside>
       <main className="main-content">
-        <nav className="breadcrumbs" aria-label="Хлебные крошки"><span>NetHelper</span>{parts.map((part, index) => <span key={`${part}-${index}`}>/ {pageNames[part] ?? (index === 1 && parts[0] === 'topology' ? topologies.find((item) => item.id === part)?.name : undefined) ?? decodeURIComponent(part)}</span>)}</nav>
         <Outlet />
       </main>
     </div>
