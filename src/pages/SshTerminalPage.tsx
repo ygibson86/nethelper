@@ -9,7 +9,9 @@ import { useNetHelper } from '../store'
 type TerminalStatus = 'idle' | 'connecting' | 'connected' | 'closed' | 'error'
 type ServerMessage = { type: string; data?: string; encoding?: string; message?: string; code?: string; fingerprint?: string; expected?: string; hostname?: string; ip?: string }
 
-const highlightPattern = /(?<mac>\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b|\b(?:[0-9a-f]{4}\.){2}[0-9a-f]{4}\b)|(?<ip>\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b)|(?<iface>\b(?:GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|Port-channel|Gi|Fa|Te|Eth|Po)\s*\d+(?:\/\d+)*(?:\.\d+)?\b)|(?<vlan>\bVLAN\s*\d+\b)|(?<success>\b(?:up|connected|active|enabled|success)\b)|(?<danger>\b(?:down|notconnect|disabled|failed|failure|error)\b)|(?<warning>\b(?:warning|err-disabled|suspended)\b)|(?<command>\b(?:show|configure|conf|interface|switchport|shutdown|enable|disable|write|copy|ping|traceroute)\b)/gi
+const highlightPattern = /(?<mac>\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b|\b(?:[0-9a-f]{4}\.){2}[0-9a-f]{4}\b)|(?<ip>\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b)|(?<iface>\b(?:GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|Port-channel|gi|fa|te|eth|po|ge|xg)\s*\d+(?:\/\d+)*(?:\.\d+)?\b)|(?<vlan>\bVLAN(?:\s+|[-_]?ID\s*[:=]?\s*)\d+\b)|(?<success>\b(?:up|connected|active|enabled|success|forwarding|learning|operational|present)\b)|(?<danger>\b(?:down|notconnect|notpresent|disabled|failed|failure|error|blocking|discarding)\b)|(?<warning>\b(?:warning|err-disabled|suspended|administratively\s+down)\b)|(?<command>\b(?:show|configure|conf|interface|switchport|shutdown|enable|disable|write|copy|ping|traceroute|display)\b)/gi
+const nativeColorPattern = /^\[(?:[0-9;]*;)?(?:3[0-7]|4[0-7]|9[0-7]|10[0-7]|38(?:;\d+){1,4}|48(?:;\d+){1,4})m/
+const escapeCharacter = String.fromCharCode(27)
 const terminalColors: Record<string, string> = { mac: '\x1b[95m', ip: '\x1b[96m', iface: '\x1b[38;5;208m', vlan: '\x1b[94m', success: '\x1b[92m', danger: '\x1b[91m', warning: '\x1b[93m', command: '\x1b[38;5;48m' }
 
 function highlightTerminalOutput(text: string) {
@@ -124,7 +126,7 @@ export function SshTerminalPage() {
       try { message = JSON.parse(String(event.data)) as ServerMessage } catch { return }
       if (message.type === 'output' && message.data) {
         const output = message.encoding === 'base64' ? outputDecoder.current.decode(Uint8Array.from(atob(message.data), (char) => char.charCodeAt(0)), { stream: true }) : message.data
-        if (output.includes('\x1b')) nativeAnsiOutput.current = true
+        if (output.split(escapeCharacter).slice(1).some((sequence) => nativeColorPattern.test(sequence))) nativeAnsiOutput.current = true
         outputQueue.current += output
         if (outputFrame.current === null) outputFrame.current = requestAnimationFrame(() => {
           outputFrame.current = null
