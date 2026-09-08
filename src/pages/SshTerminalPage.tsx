@@ -9,6 +9,17 @@ import { useNetHelper } from '../store'
 type TerminalStatus = 'idle' | 'connecting' | 'connected' | 'closed' | 'error'
 type ServerMessage = { type: string; data?: string; encoding?: string; message?: string; code?: string; fingerprint?: string; expected?: string; hostname?: string; ip?: string }
 
+const highlightPattern = /(?<mac>\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b|\b(?:[0-9a-f]{4}\.){2}[0-9a-f]{4}\b)|(?<ip>\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b)|(?<iface>\b(?:GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|Port-channel|Gi|Fa|Te|Eth|Po)\s*\d+(?:\/\d+)*(?:\.\d+)?\b)|(?<vlan>\bVLAN\s*\d+\b)|(?<success>\b(?:up|connected|active|enabled|success)\b)|(?<danger>\b(?:down|notconnect|disabled|failed|failure|error)\b)|(?<warning>\b(?:warning|err-disabled|suspended)\b)|(?<command>\b(?:show|configure|conf|interface|switchport|shutdown|enable|disable|write|copy|ping|traceroute)\b)/gi
+const terminalColors: Record<string, string> = { mac: '\x1b[95m', ip: '\x1b[96m', iface: '\x1b[38;5;208m', vlan: '\x1b[94m', success: '\x1b[92m', danger: '\x1b[91m', warning: '\x1b[93m', command: '\x1b[38;5;48m' }
+
+function highlightTerminalOutput(text: string) {
+  return text.replace(highlightPattern, (match, ...args: unknown[]) => {
+    const groups = args.at(-1) as Record<string, string | undefined>
+    const category = Object.keys(terminalColors).find((key) => groups[key])
+    return category ? `${terminalColors[category]}${match}\x1b[0m` : match
+  })
+}
+
 export function SshTerminalPage() {
   const { deviceId = '' } = useParams()
   const location = useLocation()
@@ -23,6 +34,8 @@ export function SshTerminalPage() {
   const socket = useRef<WebSocket | null>(null)
   const passwordRef = useRef('')
   const awaitingFingerprint = useRef(false)
+  const outputDecoder = useRef(new TextDecoder())
+  const nativeAnsiOutput = useRef(false)
   const [username, setUsername] = useState(() => localStorage.getItem(`nethelper.ssh.username.${deviceId}`) ?? localStorage.getItem('nethelper.ssh.username') ?? '')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<TerminalStatus>('idle')
@@ -57,6 +70,8 @@ export function SshTerminalPage() {
     setError('')
     setFingerprint(null)
     awaitingFingerprint.current = false
+    nativeAnsiOutput.current = false
+    outputDecoder.current = new TextDecoder()
     terminal.current?.clear()
     terminal.current?.writeln(`\x1b[36mПодключение к ${device?.hostname ?? targetHost}…\x1b[0m`)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -72,7 +87,11 @@ export function SshTerminalPage() {
       if (socket.current !== ws) return
       let message: ServerMessage
       try { message = JSON.parse(String(event.data)) as ServerMessage } catch { return }
-      if (message.type === 'output' && message.data) terminal.current?.write(message.encoding === 'base64' ? Uint8Array.from(atob(message.data), (char) => char.charCodeAt(0)) : message.data)
+      if (message.type === 'output' && message.data) {
+        const output = message.encoding === 'base64' ? outputDecoder.current.decode(Uint8Array.from(atob(message.data), (char) => char.charCodeAt(0)), { stream: true }) : message.data
+        if (output.includes('\x1b')) nativeAnsiOutput.current = true
+        terminal.current?.write(nativeAnsiOutput.current ? output : highlightTerminalOutput(output))
+      }
       if (message.type === 'ready') {
         awaitingFingerprint.current = false
         localStorage.setItem('nethelper.ssh.username', username.trim())
