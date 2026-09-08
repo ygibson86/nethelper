@@ -8,7 +8,7 @@ import { config } from './config.js'
 
 interface SessionRequest extends FastifyRequest { sshExpiresAt?: number }
 type State = 'new' | 'connecting' | 'connected' | 'closed'
-type ClientMessage = { type: string; host?: string; username?: string; password?: string; fingerprint?: string; cols?: number; rows?: number; data?: string }
+type ClientMessage = { type: string; host?: string; profile?: 'auto' | 'modern' | 'cisco' | 'eltex'; username?: string; password?: string; fingerprint?: string; cols?: number; rows?: number; data?: string }
 type SshTarget = { key: string; hostname: string; ip: string; manufacturerId: string }
 
 const sessions = new Set<WebSocket>()
@@ -64,6 +64,16 @@ function manualTarget(host: string | undefined): SshTarget | null {
   const ip = host?.trim() ?? ''
   if (!ipAllowed(ip)) return null
   return { key: `address:${ip}`, hostname: ip, ip, manufacturerId: '' }
+}
+
+async function resolveManualTarget(host: string | undefined, requestedProfile: ClientMessage['profile']) {
+  const target = manualTarget(host)
+  if (!target) return null
+  if (requestedProfile && requestedProfile !== 'auto' && requestedProfile !== 'modern') return { ...target, manufacturerId: requestedProfile }
+  if (requestedProfile === 'modern') return target
+  const result = await db.query<{ hostname: string; manufacturer_id: string }>(`SELECT device->>'hostname' hostname, device->>'manufacturerId' manufacturer_id FROM app_data, jsonb_array_elements(data->'switches') device WHERE singleton = TRUE AND btrim(device->>'ip') = $1 LIMIT 2`, [target.ip])
+  if (result.rowCount === 1) return { ...target, hostname: result.rows[0].hostname || target.ip, manufacturerId: result.rows[0].manufacturer_id || '' }
+  return target
 }
 
 async function verifyAndPinHostKey(deviceId: string, key: Buffer, accepted: string | undefined, socket: WebSocket) {
@@ -156,7 +166,7 @@ export async function registerSsh(app: FastifyInstance, requireAuth: (request: F
         const cols = Math.min(Math.max(Number(message.cols) || 120, 20), 240)
         const rows = Math.min(Math.max(Number(message.rows) || 32, 5), 100)
         if (!username || !password || username.length > 128 || password.length > 1024) return fail('invalid_credentials', 'Укажите имя пользователя и пароль.')
-        const target = manual ? manualTarget(message.host) : await findDevice(deviceId)
+        const target = manual ? await resolveManualTarget(message.host, message.profile) : await findDevice(deviceId)
         if (state !== 'connecting') return
         if (!target) return fail('device_not_allowed', manual ? `Разрешены только IPv4-адреса из разрешённых подсетей: ${allowedCidrs.join(', ')}.` : 'Устройство не найдено или SSH для него запрещён.')
         const currentClient = new Client()

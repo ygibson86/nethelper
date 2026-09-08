@@ -16,6 +16,7 @@ export function SshTerminalPage() {
   const manual = !deviceId
   const device = useNetHelper((state) => state.switches.find((item) => item.id === deviceId))
   const [host, setHost] = useState(presetHost)
+  const [profile, setProfile] = useState<'auto' | 'modern' | 'cisco' | 'eltex'>('auto')
   const terminalHost = useRef<HTMLDivElement>(null)
   const terminal = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
@@ -65,7 +66,7 @@ export function SshTerminalPage() {
     ws.addEventListener('open', () => {
       const fit = fitAddon.current
       fit?.fit()
-      ws.send(JSON.stringify({ type: 'connect', host: manual ? targetHost : undefined, username: username.trim(), password: passwordRef.current, fingerprint: acceptedFingerprint, cols: terminal.current?.cols ?? 120, rows: terminal.current?.rows ?? 32 }))
+      ws.send(JSON.stringify({ type: 'connect', host: manual ? targetHost : undefined, profile: manual ? profile : undefined, username: username.trim(), password: passwordRef.current, fingerprint: acceptedFingerprint, cols: terminal.current?.cols ?? 120, rows: terminal.current?.rows ?? 32 }))
     })
     ws.addEventListener('message', (event) => {
       if (socket.current !== ws) return
@@ -114,7 +115,7 @@ export function SshTerminalPage() {
       setError('WebSocket-соединение с NetHelper прервано.')
       setStatus('error')
     })
-  }, [device, host, manual, username])
+  }, [device, host, manual, profile, username])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -142,7 +143,7 @@ export function SshTerminalPage() {
 
   return <div className="ssh-terminal-page">
     <header className="page-header compact"><div><p className="eyebrow">Удалённый доступ</p><h1>{device ? `SSH · ${device.hostname}` : 'SSH-терминал'}</h1><p className="page-subtitle">{device ? `${device.ip} · ` : ''}пароль не сохраняется</p></div><div className={`ssh-status status-${status}`}><span />{status === 'idle' ? 'Не подключено' : status === 'connecting' ? 'Подключение…' : status === 'connected' ? 'Подключено' : status === 'closed' ? 'Сессия завершена' : 'Ошибка'}</div></header>
-    {status !== 'connected' && <form className="ssh-login-card" onSubmit={submit}><div className="ssh-login-title"><KeyRound size={20} /><div><strong>Учётные данные SSH</strong><span>Вставьте пароль из Passbolt</span></div></div>{manual && <label>IPv4-адрес<input autoFocus required inputMode="decimal" value={host} onChange={(event) => setHost(event.target.value)} placeholder="192.168.31.5" /></label>}<label>Пользователь<input autoFocus={!manual} required autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="admin" /></label><label>Пароль<input required type="password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); passwordRef.current = event.target.value }} /></label><button className="button primary" disabled={status === 'connecting'}><Plug size={17} /> {status === 'connecting' ? 'Подключение…' : 'Подключиться'}</button></form>}
+    {status !== 'connected' && <form className="ssh-login-card" onSubmit={submit}><div className="ssh-login-title"><KeyRound size={20} /><div><strong>Учётные данные SSH</strong><span>Вставьте пароль из Passbolt</span></div></div>{manual && <><label>IPv4-адрес<input autoFocus required inputMode="decimal" value={host} onChange={(event) => setHost(event.target.value)} placeholder="192.168.31.5" /></label><label>Профиль SSH<select value={profile} onChange={(event) => setProfile(event.target.value as typeof profile)}><option value="auto">Авто по устройству</option><option value="modern">Современный</option><option value="cisco">Cisco legacy</option><option value="eltex">Eltex legacy</option></select></label></>}<label>Пользователь<input autoFocus={!manual} required autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="admin" /></label><label>Пароль<input required type="password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); passwordRef.current = event.target.value }} /></label><button className="button primary" disabled={status === 'connecting'}><Plug size={17} /> {status === 'connecting' ? 'Подключение…' : 'Подключиться'}</button></form>}
     {fingerprint && !fingerprint.changedFrom && <section className="ssh-warning"><AlertTriangle size={22} /><div><strong>Новый ключ устройства</strong><p>Сверьте fingerprint устройства перед первым подключением.</p><code>{fingerprint.value}</code><div className="ssh-warning-actions"><button className="button primary" onClick={() => connect(fingerprint.value)}>Доверять и подключиться</button><button className="button" onClick={() => { awaitingFingerprint.current = false; passwordRef.current = ''; setPassword(''); setFingerprint(null) }}>Отмена</button></div></div></section>}
     {fingerprint?.changedFrom && <section className="ssh-warning danger"><AlertTriangle size={22} /><div><strong>SSH-ключ устройства изменился</strong><p>Подключение заблокировано. Проверьте устройство и удалите сохранённый ключ только после подтверждения изменения.</p><code>Сохранён: {fingerprint.changedFrom}</code><code>Получен: {fingerprint.value}</code><div className="ssh-warning-actions"><button className="button danger-button" onClick={() => void forgetHostKey()}>Забыть сохранённый ключ</button></div></div></section>}
     {error && <div className="ssh-error" role="alert">{error}</div>}
