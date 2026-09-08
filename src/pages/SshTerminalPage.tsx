@@ -36,6 +36,8 @@ export function SshTerminalPage() {
   const awaitingFingerprint = useRef(false)
   const outputDecoder = useRef(new TextDecoder())
   const nativeAnsiOutput = useRef(false)
+  const outputQueue = useRef('')
+  const outputFrame = useRef<number | null>(null)
   const [username, setUsername] = useState(() => localStorage.getItem(`nethelper.ssh.username.${deviceId}`) ?? localStorage.getItem('nethelper.ssh.username') ?? '')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<TerminalStatus>('idle')
@@ -43,23 +45,53 @@ export function SshTerminalPage() {
   const [fingerprint, setFingerprint] = useState<{ value: string; changedFrom?: string } | null>(null)
 
   useEffect(() => {
-    if (!terminalHost.current) return
+    const hostElement = terminalHost.current
+    if (!hostElement) return
     const instance = new Terminal({ cursorBlink: true, convertEol: true, fontFamily: '"JetBrains Mono", Consolas, monospace', fontSize: 14, theme: { background: '#0d131c', foreground: '#d8e1ec', cursor: '#36c98f', selectionBackground: '#36c98f55' }, scrollback: 5000 })
     const fit = new FitAddon()
     instance.loadAddon(fit)
-    instance.open(terminalHost.current)
+    instance.open(hostElement)
     fit.fit()
     terminal.current = instance
     fitAddon.current = fit
     const input = instance.onData((data) => {
       if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify({ type: 'input', data }))
     })
+    const selection = instance.onSelectionChange(() => {
+      const selected = instance.getSelection()
+      if (selected) void navigator.clipboard.writeText(selected).catch(() => undefined)
+    })
+    instance.attachCustomKeyEventHandler((event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && instance.hasSelection()) {
+        void navigator.clipboard.writeText(instance.getSelection()).catch(() => undefined)
+        instance.clearSelection()
+        return false
+      }
+      return true
+    })
+    const paste = (event: MouseEvent) => {
+      event.preventDefault()
+      void navigator.clipboard.readText().then((data) => {
+        if (data && socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify({ type: 'input', data }))
+      }).catch(() => undefined)
+    }
+    hostElement.addEventListener('contextmenu', paste)
     const resize = new ResizeObserver(() => {
       fit.fit()
       if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify({ type: 'resize', cols: instance.cols, rows: instance.rows }))
     })
-    resize.observe(terminalHost.current)
-    return () => { resize.disconnect(); input.dispose(); socket.current?.close(); instance.dispose() }
+    resize.observe(hostElement)
+    return () => {
+      resize.disconnect()
+      input.dispose()
+      selection.dispose()
+      hostElement.removeEventListener('contextmenu', paste)
+      if (outputFrame.current !== null) cancelAnimationFrame(outputFrame.current)
+      outputFrame.current = null
+      outputQueue.current = ''
+      socket.current?.close()
+      instance.dispose()
+    }
   }, [])
 
   const connect = useCallback((acceptedFingerprint?: string) => {
@@ -72,6 +104,9 @@ export function SshTerminalPage() {
     awaitingFingerprint.current = false
     nativeAnsiOutput.current = false
     outputDecoder.current = new TextDecoder()
+    if (outputFrame.current !== null) cancelAnimationFrame(outputFrame.current)
+    outputFrame.current = null
+    outputQueue.current = ''
     terminal.current?.clear()
     terminal.current?.writeln(`\x1b[36mПодключение к ${device?.hostname ?? targetHost}…\x1b[0m`)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -90,7 +125,13 @@ export function SshTerminalPage() {
       if (message.type === 'output' && message.data) {
         const output = message.encoding === 'base64' ? outputDecoder.current.decode(Uint8Array.from(atob(message.data), (char) => char.charCodeAt(0)), { stream: true }) : message.data
         if (output.includes('\x1b')) nativeAnsiOutput.current = true
-        terminal.current?.write(nativeAnsiOutput.current ? output : highlightTerminalOutput(output))
+        outputQueue.current += output
+        if (outputFrame.current === null) outputFrame.current = requestAnimationFrame(() => {
+          outputFrame.current = null
+          const queued = outputQueue.current
+          outputQueue.current = ''
+          if (queued) terminal.current?.write(nativeAnsiOutput.current ? queued : highlightTerminalOutput(queued))
+        })
       }
       if (message.type === 'ready') {
         awaitingFingerprint.current = false
