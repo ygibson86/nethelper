@@ -164,7 +164,14 @@ export async function registerSsh(app: FastifyInstance, requireAuth: (request: F
         sessions.add(socket)
         client = currentClient
         let hostKeyRejected = false
-        const algorithms: ConnectConfig['algorithms'] = config.SSH_LEGACY_ELTEX && target.manufacturerId.toLowerCase() === 'eltex' ? {
+        const manufacturer = target.manufacturerId.toLowerCase()
+        const compatibilityProfile = manufacturer === 'cisco' && config.SSH_LEGACY_CISCO ? 'cisco' : manufacturer === 'eltex' && config.SSH_LEGACY_ELTEX ? 'eltex' : null
+        const algorithms: ConnectConfig['algorithms'] = compatibilityProfile === 'cisco' ? {
+          kex: { append: ['diffie-hellman-group-exchange-sha1', 'diffie-hellman-group14-sha1', 'diffie-hellman-group1-sha1'], prepend: [], remove: [] },
+          serverHostKey: { append: ['ssh-rsa'], prepend: [], remove: [] },
+          cipher: { append: ['aes128-cbc', 'aes192-cbc', 'aes256-cbc', '3des-cbc'], prepend: [], remove: [] },
+          hmac: { append: ['hmac-sha1'], prepend: [], remove: [] },
+        } : compatibilityProfile === 'eltex' ? {
           kex: { append: ['diffie-hellman-group14-sha1'], prepend: [], remove: [] },
           serverHostKey: { append: ['ssh-rsa'], prepend: [], remove: [] },
           cipher: { append: ['aes128-cbc'], prepend: [], remove: [] },
@@ -186,13 +193,16 @@ export async function registerSsh(app: FastifyInstance, requireAuth: (request: F
             stream.on('error', () => fail('shell_error', 'Ошибка терминального канала.'))
             stream.on('close', cleanup)
             resetIdle()
-            send(socket, { type: 'ready', hostname: target.hostname, ip: target.ip, legacyCompatibility: Boolean(algorithms) })
+            send(socket, { type: 'ready', hostname: target.hostname, ip: target.ip, compatibilityProfile })
           })
         })
         currentClient.on('error', (error) => {
           if (state === 'closed') return
           if (hostKeyRejected) return cleanup()
-          fail(error.message.includes('All configured authentication methods failed') ? 'auth_failed' : 'connect_failed', error.message.includes('All configured authentication methods failed') ? 'Неверное имя пользователя или пароль.' : 'SSH-подключение не установлено.')
+          const authenticationFailed = error.message.includes('All configured authentication methods failed')
+          const negotiationFailed = /handshake|algorithm|key exchange|cipher/i.test(error.message)
+          request.log.warn({ deviceId: target.key, ip: target.ip, manufacturer: target.manufacturerId, compatibilityProfile, reason: error.message }, 'SSH connection failed')
+          fail(authenticationFailed ? 'auth_failed' : negotiationFailed ? 'algorithm_negotiation_failed' : 'connect_failed', authenticationFailed ? 'Неверное имя пользователя или пароль.' : negotiationFailed ? 'Не удалось согласовать SSH-алгоритмы. Проверьте профиль совместимости устройства.' : 'SSH-подключение не установлено.')
         })
         currentClient.on('close', cleanup)
         currentClient.connect({ host: target.ip, port: config.SSH_PORT, username, password, readyTimeout: config.SSH_CONNECT_TIMEOUT_MS, tryKeyboard: false, algorithms, hostVerifier: (key: Buffer, verify: (valid: boolean) => void) => {

@@ -137,6 +137,7 @@ SSH_IDLE_TIMEOUT_SECONDS=1800
 SSH_MAX_SESSIONS=20
 SSH_MAX_LIFETIME_SECONDS=28800
 SSH_LEGACY_ELTEX=true
+SSH_LEGACY_CISCO=true
 ```
 
 ### PostgreSQL
@@ -218,7 +219,8 @@ docker compose up -d --build api nethelper
 | `SSH_IDLE_TIMEOUT_SECONDS` | Завершение неактивной сессии | `1800` |
 | `SSH_MAX_SESSIONS` | Максимум параллельных сессий | `20` |
 | `SSH_MAX_LIFETIME_SECONDS` | Абсолютная длительность сессии | `28800` |
-| `SSH_LEGACY_ELTEX` | Дополнительные алгоритмы для устройств Eltex | `true` |
+| `SSH_LEGACY_ELTEX` | Дополнительные алгоритмы только для устройств Eltex | `true` |
+| `SSH_LEGACY_CISCO` | Legacy KEX, `ssh-rsa` и CBC только для устройств Cisco | `true` |
 
 ## Сетевая доступность SSH
 

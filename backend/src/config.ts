@@ -15,6 +15,7 @@ const environment = z.object({
   SSH_MAX_SESSIONS: z.coerce.number().int().min(1).max(100).default(20),
   SSH_MAX_LIFETIME_SECONDS: z.coerce.number().int().min(60).max(28800).default(28800),
   SSH_LEGACY_ELTEX: z.string().default('true').transform((value) => value === 'true'),
+  SSH_LEGACY_CISCO: z.string().default('true').transform((value) => value === 'true'),
 })
 
 export const config = environment.parse(process.env)
