@@ -265,6 +265,129 @@ docker compose exec api node -e "const net=require('net');const s=net.createConn
 
 Не открывайте production-интерфейс по обычному HTTP: SSH-пароль передаётся через WebSocket только на время подключения и должен быть защищён TLS.
 
+### TLS прямо в контейнере с локальным CA
+
+Подходит для сети без доступа в интернет. Локальный Root CA подписывает сертификат NetHelper, а Root CA устанавливается в доверенные на рабочих компьютерах. Без доверенного CA Chrome считает origin небезопасным и блокирует Clipboard API.
+
+1. Выпустите сертификат. Скрипт нужно запускать через `sudo`:
+
+```bash
+sudo ./scripts/setup-local-tls.sh nethelper.example.internal 192.168.1.10
+```
+
+Второй аргумент — необязательный IP-адрес сервера для SAN. Если сертификат уже существует, используйте `--force`, чтобы перевыпустить его без пересоздания CA.
+
+Скрипт создаёт:
+
+```text
+/root/nethelper-ca/nethelper-root-ca.crt   # публичный Root CA для клиентов
+/root/nethelper-ca/nethelper-root-ca.key   # приватный ключ CA, никому не передавать
+certs/fullchain.pem
+certs/privkey.pem
+```
+
+Каталог `certs/` исключён из Git. Приватный ключ CA нельзя копировать в репозиторий или образ.
+
+2. Укажите в `.env`:
+
+```env
+PUBLIC_ORIGIN=https://nethelper.example.internal
+NETHELPER_HTTP_PORT=80
+NETHELPER_HTTPS_PORT=443
+```
+
+`PUBLIC_ORIGIN` должен полностью совпадать с адресом, который открывается в браузере.
+
+3. Запустите приложение с TLS-конфигурацией:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+```
+
+HTTP на порту 80 будет перенаправлять на HTTPS 443. Порты можно изменить через `NETHELPER_HTTP_PORT` и `NETHELPER_HTTPS_PORT`. Для `docker-compose.tls.yml` нужен Docker Compose 2.24 или новее — в нём используется тег `!override` для замены портов.
+
+4. Установите `/root/nethelper-ca/nethelper-root-ca.crt` в доверенные корневые сертификаты на клиентах. На Windows: `certlm.msc` → **Trusted Root Certification Authorities** → **Certificates** → **Import**, затем перезапустите Chrome. Для доменных компьютеров удобнее распространить CA через GPO.
+
+5. Проверьте:
+
+```bash
+curl --cacert /root/nethelper-ca/nethelper-root-ca.crt -I https://nethelper.example.internal
+```
+
+В Chrome откройте `https://nethelper.example.internal` и проверьте в консоли:
+
+```js
+window.isSecureContext   // true
+Boolean(navigator.clipboard) // true
+```
+
+DNS-имя из сертификата должно указывать на этот хост. Если перед NetHelper уже стоит внешний reverse proxy с валидным сертификатом, встроенный TLS включать не нужно — используйте существующий HTTPS-адрес.
+
+Для SELinux при необходимости добавьте `,Z` к монтированиям в `docker-compose.tls.yml` или выполните `chcon -Rt svirt_sandbox_file_t certs`.
+
+### Автоматический деплой TLS на существующий стенд
+
+Скрипт `scripts/deploy-prod-tls.sh` обновляет уже развёрнутый стенд:
+
+- делает резервную копию PostgreSQL в `backups/` (если стек уже запущен);
+- обновляет Git checkout до `origin/main`;
+- прописывает в `.env` `PUBLIC_ORIGIN`, `NETHELPER_HTTP_PORT` и `NETHELPER_HTTPS_PORT`;
+- выпускает локальный Root CA и сертификат либо переиспользует действующий;
+- запускает `docker compose` с `docker-compose.tls.yml`.
+
+Запускать нужно от пользователя, который владеет каталогом репозитория и имеет доступ к Docker, **без `sudo`**:
+
+```bash
+cd /opt/nethelper
+./scripts/deploy-prod-tls.sh --yes
+```
+
+Если каталог другой, укажите его явно:
+
+```bash
+./scripts/deploy-prod-tls.sh --dir /path/to/nethelper --yes
+```
+
+По умолчанию скрипт настроен на:
+
+```text
+domain: nethelper.ad.tarkett.ru
+IP:     10.179.37.41
+branch: main
+```
+
+Их можно переопределить через `--domain`, `--ip` и `--branch`.
+
+Чтобы обновить код и `.env`, но не трогать сертификаты и контейнеры, используйте `--prepare-only`:
+
+```bash
+./scripts/deploy-prod-tls.sh --prepare-only --yes
+```
+
+Если старая версия репозитория ещё не содержит скрипт, его можно скачать отдельно и запустить:
+
+```bash
+curl -fsSLo deploy-prod-tls.sh \
+  https://raw.githubusercontent.com/ygibson86/nethelper/main/scripts/deploy-prod-tls.sh
+chmod +x deploy-prod-tls.sh
+./deploy-prod-tls.sh --dir /opt/nethelper --yes
+```
+
+Перед запуском проверьте, что:
+
+- установлен Docker Compose 2.24 или новее;
+- порты 80 и 443 свободны;
+- `nethelper.ad.tarkett.ru` резолвится в `10.179.37.41` или клиенты получат эту запись через DNS/hosts;
+- в существующем `.env` заполнены реальные секреты (скрипт остановится, если найдёт placeholder).
+
+После деплоя публичный Root CA лежит в `certs/nethelper-root-ca.crt`. Его нужно установить на клиентские компьютеры. Приватный ключ CA остаётся в `/root/nethelper-ca` и в репозиторий не попадает.
+
+Если на стенде уже запущена другая версия и нужно сохранить её `.env`, скрипт не перезаписывает секреты: он меняет только `PUBLIC_ORIGIN` и TLS-порты, а предыдущий `.env` сохраняет в `backups/`.
+
+Перед обновлением скрипт делает дамп PostgreSQL в `backups/` и сохраняет текущий образ как `nethelper:pre-tls-<timestamp>`. Для отката верните предыдущий коммит и пересоберите стек без `docker-compose.tls.yml`; данные PostgreSQL останутся в volume `postgres-data`.
+
+Скрипт обновляет ветку `main`, то есть подтягивает все изменения репозитория, а не только TLS. Если production-хост без доступа в интернет, заранее передайте туда Git-репозиторий или `git bundle` и укажите локальный путь через `--repo`. Если код уже скопирован или применён из bundle, запускайте скрипт с `--no-update`, чтобы он не пытался обращаться к GitHub.
+
 ## Первоначальный импорт
 
 После первого входа:

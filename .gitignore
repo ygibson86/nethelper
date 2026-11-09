@@ -25,3 +25,9 @@ dist-ssr
 
 # Environment variables
 .env
+
+# Local TLS certificates
+certs/
+
+# Deployment backups
+backups/
