@@ -22,11 +22,11 @@ function tokenizeLine(line: string): ReactNode[] {
       continue
     }
 
-    const iface = /^(gigabitethernet|fastethernet|ethernet|te|ge|gi|eth)\s*([0-9]+\/[0-9]+\/[0-9]+|[0-9]+\/[0-9]+|[0-9]+)/i.exec(rest)
+    const iface = /^(gigabitethernet|fastethernet|ethernet|te|ge|gi|eth)(\s*)([0-9]+\/[0-9]+\/[0-9]+|[0-9]+\/[0-9]+|[0-9]+)/i.exec(rest)
     if (iface) {
       nodes.push(<span key={key++} className="cfg-command">{iface[1]}</span>)
-      nodes.push(' ')
-      nodes.push(<span key={key++} className="cfg-iface">{iface[2]}</span>)
+      if (iface[2]) nodes.push(iface[2])
+      nodes.push(<span key={key++} className="cfg-iface">{iface[3]}</span>)
       index += iface[0].length
       continue
     }

@@ -106,7 +106,7 @@ export function Layout() {
           <div className={`storage-note save-${saveState.status}`} role="status"><span className="status-dot" /> {saveLabel}</div>
           {saveState.message && <p className="save-message" role="alert">{saveState.message}</p>}
           {saveState.status === 'error' && <><button className="save-action" onClick={saveState.retry}>Повторить сохранение</button><button className="save-action" onClick={downloadRecovery}>Скачать мои изменения</button><button className="save-action" onClick={loadServerVersion}>Перезагрузить и войти снова</button></>}
-          {saveState.status === 'conflict' && <><button className="save-action" onClick={downloadRecovery}>Скачать мои изменения</button><button className="save-action" onClick={loadServerVersion}>Загрузить серверную версию</button></>}
+          {saveState.status === 'conflict' && <><button className="save-action" onClick={saveState.retry}>Объединить изменения</button><button className="save-action" onClick={downloadRecovery}>Скачать мои изменения</button><button className="save-action" onClick={loadServerVersion}>Загрузить серверную версию</button></>}
         </div>
       </aside>
       <main className="main-content">

@@ -309,7 +309,7 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .cfg-vlan { color: #fbbf24; }
 .cfg-num { color: #a5b4fc; }
 .cfg-mac { color: #f472b6; }
-.cfg-ph { color: #ffd166; background: rgba(255, 209, 102, .12); border-radius: 3px; padding: 0 2px; font-weight: 700; }
+.cfg-ph { color: #ffd166; background: rgba(255, 209, 102, .12); border-radius: 3px; font-weight: 700; }
 .cfg-hl { background: rgba(250, 204, 21, .35); color: inherit; border-radius: 2px; }
 :root[data-theme="light"] .cfg-command { color: #0369a1; }
 :root[data-theme="light"] .cfg-iface { color: #b45309; }
