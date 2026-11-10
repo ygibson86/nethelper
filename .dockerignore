@@ -8,3 +8,5 @@ backend/dist
 *.local
 .env
 README*
+certs
+backups
