@@ -101,6 +101,10 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: .72rem; font-weight: 600; min-width: 0; }
 .form-grid .full { grid-column: 1 / -1; }
+.linked-device-picker { display: flex; gap: 6px; align-items: stretch; }
+.linked-device-picker input { flex: 0 0 150px; min-width: 0; }
+.linked-device-picker select { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 520px) { .linked-device-picker { flex-direction: column; } .linked-device-picker input { flex-basis: auto; } }
 .form-grid input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
 .form-grid select,
 .form-grid textarea { width: 100%; min-width: 0; box-sizing: border-box; }
