@@ -11,6 +11,9 @@ FROM node:22-alpine
 
 ENV NODE_ENV=production
 WORKDIR /app
+RUN apk add --no-cache iputils libcap \
+    && setcap cap_net_raw+ep /bin/ping
+
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 

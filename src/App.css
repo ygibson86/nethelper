@@ -162,6 +162,12 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .flow-device small { color: #aab5c5; font: 600 11px "JetBrains Mono", Consolas, monospace; }
 :root[data-theme="light"] .flow-device strong { color: #18202c; }
 :root[data-theme="light"] .flow-device small { color: #66758a; }
+.ping-dot { position: absolute; top: -5px; right: -5px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #151d28; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
+.ping-up { background: #22c55e; box-shadow: 0 0 7px rgba(34,197,94,.8); }
+.ping-down { background: #ef4444; box-shadow: 0 0 7px rgba(239,68,68,.8); }
+.ping-pending { background: #94a3b8; animation: ping-pulse 1.5s ease-in-out infinite; }
+:root[data-theme="light"] .ping-dot { border-color: #fff; }
+@keyframes ping-pulse { 50% { opacity: .4; } }
 .flow-group { position: relative; width: 100%; height: 100%; border: 1px dashed color-mix(in srgb, var(--node-color), transparent 38%); border-radius: 8px; background: color-mix(in srgb, var(--node-color) 5%, transparent); padding: 10px 12px; color: var(--text); }
 .flow-group.selected { border: 3px solid var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent), 0 10px 28px rgba(0,0,0,.3); }
 .group-resize-line { border-color: var(--accent) !important; }

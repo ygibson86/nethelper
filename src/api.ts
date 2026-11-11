@@ -36,3 +36,14 @@ export async function getServerData() {
 export async function saveServerData(data: AppData, revision: number) {
   return request('/api/data', { method: 'PUT', headers: { 'If-Match': `"${revision}"` }, body: JSON.stringify(data) }) as Promise<{ data: AppData; updatedAt: string; revision: number }>
 }
+
+export interface PingResult {
+  host: string
+  alive: boolean
+  rtt?: number
+  error?: string
+}
+
+export async function pingHosts(hosts: string[]) {
+  return request('/api/ping', { method: 'POST', body: JSON.stringify({ hosts }) }) as Promise<{ results: PingResult[] }>
+}

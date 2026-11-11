@@ -8,6 +8,7 @@ import { config, secureCookies } from './config.js'
 import { createSession, getSessionPayload, validatePassword, verifySession } from './auth.js'
 import { db, initializeDatabase } from './db.js'
 import { closeSshSessions, registerSsh } from './ssh.js'
+import { registerPing } from './ping.js'
 
 const cookieName = 'nethelper_session'
 const id = z.string().min(1).max(256)
@@ -20,9 +21,9 @@ const dataSchema = z.object({
   switches: z.array(z.object({ id, hostname: text, ip: z.string().max(256), manufacturerId: z.string().max(256), deviceType, model: text, accessMethods: z.array(z.enum(['ssh', 'rdp'])), description: text, rackId: id, topologyId: id.optional(), isCore: z.boolean().optional() })),
   racks: z.array(z.object({ id, name: text, location: text, group: text, switchIds: z.array(id) })),
   groups: z.array(text).optional(),
-  topologies: z.array(z.object({ id, name: text, description: text, nodes: z.array(z.object({ id, x: z.number().finite(), y: z.number().finite(), label: text, text: text.optional(), name: text.optional(), type: deviceType, color: z.string().max(64), manufacturerId: id.optional(), handles: handleLayout.optional(), width: z.number().positive().max(5000).optional(), height: z.number().positive().max(5000).optional(), groupLabelPosition: z.enum(['top', 'center']).optional(), switchId: id.optional(), ip: z.string().max(256).optional(), fontSize: z.number().min(8).max(200).optional() })), links: z.array(z.object({ id, source: id, target: id, sourceHandle: id.optional(), targetHandle: id.optional(), sourcePort: text, targetPort: text, cableType: z.enum(['copper', 'fiber', 'dac', 'wireless']), label: text.optional(), showLabel: z.boolean().optional() })) })),
+  topologies: z.array(z.object({ id, name: text, description: text, nodes: z.array(z.object({ id, x: z.number().finite(), y: z.number().finite(), label: text, text: text.optional(), name: text.optional(), type: deviceType, color: z.string().max(64), manufacturerId: id.optional(), handles: handleLayout.optional(), width: z.number().positive().max(5000).optional(), height: z.number().positive().max(5000).optional(), groupLabelPosition: z.enum(['top', 'center']).optional(), switchId: id.optional(), ip: z.string().max(256).optional(), ping: z.boolean().optional(), fontSize: z.number().min(8).max(200).optional() })), links: z.array(z.object({ id, source: id, target: id, sourceHandle: id.optional(), targetHandle: id.optional(), sourcePort: text, targetPort: text, cableType: z.enum(['copper', 'fiber', 'dac', 'wireless']), label: text.optional(), showLabel: z.boolean().optional() })) })),
   corePanels: z.array(z.object({ id, switchId: id, model: text, ports: z.array(z.object({ id, identifier: text, status: z.enum(['active', 'inactive', 'disabled']), ip: z.string().max(256), label: text })), rows: z.array(z.object({ id, label: text, portIds: z.array(id) })), layoutTemplate: z.enum(['single-28', 'stacked-56', 'custom']) })),
-  settings: z.object({ theme: z.enum(['dark', 'light']), fontSize: z.number().min(12).max(24), portsPerRow: z.number().int().min(1).max(128) }),
+  settings: z.object({ theme: z.enum(['dark', 'light']), fontSize: z.number().min(12).max(24), portsPerRow: z.number().int().min(1).max(128), pingEnabled: z.boolean().optional() }),
   configTemplates: z.array(z.object({ id, vendor: z.enum(['eltex', 'cisco']), title: text, description: text, body: text, updatedAt: z.string().max(128) })),
 }).strict()
 const loginSchema = z.object({ password: z.string().min(1).max(1024) })
@@ -93,6 +94,7 @@ app.put('/api/data', async (request, reply) => {
 
 await initializeDatabase()
 await registerSsh(app, requireAuth)
+await registerPing(app, requireAuth)
 await app.listen({ host: '0.0.0.0', port: 3000 })
 
 const shutdown = async () => {

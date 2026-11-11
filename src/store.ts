@@ -89,7 +89,7 @@ wr mem`,
 ]
 
 const initialData: AppData = {
-  version: 7,
+  version: 8,
   manufacturers: [
     { id: 'cisco', name: 'Cisco', abbreviation: 'C', color: '#3b82f6', deviceTypes: ['switch', 'router', 'firewall', 'access-point', 'phone'] },
     { id: 'huawei', name: 'Huawei', abbreviation: 'H', color: '#ef4444', deviceTypes: ['switch', 'router', 'firewall', 'access-point', 'phone', 'server'] },
@@ -138,7 +138,7 @@ const initialData: AppData = {
      ],
    }],
   corePanels: [],
-  settings: { theme: 'dark', fontSize: 15, portsPerRow: 24 },
+  settings: { theme: 'dark', fontSize: 15, portsPerRow: 24, pingEnabled: false },
   configTemplates: importedTemplates,
 }
 
@@ -284,7 +284,7 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
   resetData: () => set({ ...initialData }),
 }), {
   name: 'nethelper-data',
-  version: 7,
+  version: 8,
   migrate: (persisted, persistedVersion) => {
     const data = persisted as AppData
     const targetRacks = persistedVersion < 6 ? importedRacks : (data.racks ?? importedRacks)
@@ -292,7 +292,8 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
     const switchIds = new Set(targetSwitches.map((device) => device.id))
     return {
       ...data,
-      version: 7,
+      version: 8,
+      settings: { ...initialData.settings, ...data.settings, pingEnabled: data.settings?.pingEnabled === true },
       racks: targetRacks,
       groups: data.groups ?? [...new Set(targetRacks.map((rack) => rack.group.trim()).filter(Boolean))],
       manufacturers: (data.manufacturers ?? initialData.manufacturers).map((manufacturer) => ({ ...manufacturer, deviceTypes: manufacturer.deviceTypes ?? initialData.manufacturers.find((item) => item.id === manufacturer.id)?.deviceTypes ?? ['switch', 'router', 'server', 'pc'] })),

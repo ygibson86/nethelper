@@ -53,6 +53,7 @@ export interface TopologyNode {
   groupLabelPosition?: 'top' | 'center'
   switchId?: string
   ip?: string
+  ping?: boolean
   fontSize?: number
 }
 
@@ -104,6 +105,7 @@ export interface AppSettings {
   theme: Theme
   fontSize: number
   portsPerRow: number
+  pingEnabled: boolean
 }
 
 export interface ConfigTemplate {
