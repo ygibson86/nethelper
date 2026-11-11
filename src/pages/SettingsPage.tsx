@@ -9,6 +9,8 @@ const vendorDeviceTypes: { value: DeviceType; label: string }[] = [
 ]
 const allVendorTypes = vendorDeviceTypes.map((type) => type.value)
 const defaultVendor = { name: '', abbreviation: '', color: '#22c55e', deviceTypes: allVendorTypes }
+// "1.20.0" -> "1.20", "1.20.1" -> "1.20.1"
+const appVersion = __APP_VERSION__.replace(/\.0$/, '')
 
 export function SettingsPage() {
   const store = useNetHelper()
@@ -76,6 +78,10 @@ export function SettingsPage() {
         <div className="settings-card-title"><div><h2>Резервная копия</h2><p>Все данные сохраняются в одном JSON-файле</p></div></div>
         <div className="backup-actions"><button className="button primary" onClick={exportData}><Download size={18} /> Экспортировать данные</button><button className="button" onClick={() => fileRef.current?.click()}><Upload size={18} /> Импортировать данные</button><input ref={fileRef} hidden type="file" accept="application/json,.json" onChange={importData} /></div>
         <div className="backup-stats"><span><strong>{store.racks.length}</strong> шкафов</span><span><strong>{store.switches.length}</strong> устройств</span><span><strong>{store.topologies.length}</strong> схем</span><span><strong>{store.corePanels.reduce((sum, panel) => sum + panel.ports.length, 0)}</strong> портов</span></div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-card-title"><div><h2>О программе</h2><p>Текущая версия NetHelper</p></div></div>
+        <div className="setting-row"><div><strong>Версия {appVersion}</strong><span>Текущая сборка NetHelper</span></div></div>
       </section>
       <section className="settings-card danger-zone">
         <div><h2>Сброс данных</h2><p>Вернуть исходные демонстрационные данные. Отменить это действие нельзя.</p></div><button className="button danger-button" onClick={() => confirm('Сбросить все данные NetHelper?') && store.resetData()}><RotateCcw size={17} /> Сбросить</button>
