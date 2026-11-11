@@ -228,6 +228,7 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .route-choices { display: grid; gap: 8px; }.route-choices > p { color: var(--muted); font-size: .75rem; margin-bottom: 5px; }.route-choice { display: grid; gap: 4px; text-align: left; padding: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); cursor: pointer; }.route-choice:hover { border-color: var(--accent); }.route-choice strong { font-size: .78rem; }.route-choice span { color: var(--muted); font-size: .68rem; }
 .backup-card { grid-column: 1 / -1; }.backup-actions { display: flex; gap: 8px; padding: 16px 0; }.backup-stats { display: flex; gap: 30px; padding-top: 13px; border-top: 1px solid var(--border-soft); color: var(--muted); font-size: .68rem; }.backup-stats strong { color: var(--text); font-size: .9rem; margin-right: 3px; }
 .danger-zone { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-color: rgba(240,100,100,.3); }
+.app-version { margin-top: 14px; color: var(--muted); font-size: .68rem; text-align: right; letter-spacing: .01em; }
 
 /* SSH terminal */
 .ssh-terminal-page { display: grid; gap: 16px; }
