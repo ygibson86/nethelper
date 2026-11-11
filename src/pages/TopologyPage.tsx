@@ -90,7 +90,7 @@ export function TopologyPage() {
   const { topologies, switches, manufacturers, settings, addTopology, updateTopology, deleteTopology } = useNetHelper()
   const saveState = useSaveState()
   const active = topologies.find((item) => item.id === id) ?? topologies[0]
-  const pingStates = useNodePing(active?.nodes ?? emptyNodeList, switches, settings.pingEnabled)
+  const pingStates = useNodePing(active?.nodes ?? emptyNodeList, settings.pingEnabled)
   const highlightedDevice = searchParams.get('device')
   const highlightedPort = searchParams.get('port')
   const [editMode, setEditMode] = useState(false)

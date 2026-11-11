@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { pingHosts } from './api'
-import type { NetworkSwitch, TopologyNode } from './types'
+import type { TopologyNode } from './types'
 
 export type PingStatus = 'pending' | 'up' | 'down'
 
@@ -26,23 +26,22 @@ export function nodePingEnabled(node: TopologyNode, globalEnabled: boolean) {
   return globalEnabled && node.ping !== false
 }
 
-/** Linked devices are authoritative: their edited IP keeps working without touching the node. */
-export function pingIpFor(node: TopologyNode, switches: NetworkSwitch[]): string | null {
-  const deviceIp = node.switchId ? switches.find((item) => item.id === node.switchId)?.ip : undefined
-  const candidate = (deviceIp || node.ip || '').trim()
+/** The ICMP target is strictly the node's own IP field; linked devices are not consulted. */
+export function pingIpFor(node: TopologyNode): string | null {
+  const candidate = (node.ip ?? '').trim()
   return isIpAddress(candidate) ? candidate : null
 }
 
-export function useNodePing(nodes: TopologyNode[], switches: NetworkSwitch[], enabled: boolean) {
+export function useNodePing(nodes: TopologyNode[], enabled: boolean) {
   const targets = useMemo(() => {
     const map = new Map<string, string>()
     for (const node of nodes) {
       if (node.type === 'group' || node.type === 'text' || !nodePingEnabled(node, enabled)) continue
-      const ip = pingIpFor(node, switches)
+      const ip = pingIpFor(node)
       if (ip) map.set(node.id, ip)
     }
     return map
-  }, [nodes, switches, enabled])
+  }, [nodes, enabled])
   const signature = useMemo(() => [...targets].map(([id, ip]) => `${id}=${ip}`).join('|'), [targets])
   const targetsRef = useRef(targets)
   useEffect(() => { targetsRef.current = targets }, [targets])
