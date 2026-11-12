@@ -115,6 +115,7 @@ export interface ConfigTemplate {
   description: string
   body: string
   updatedAt: string
+  favorite?: boolean
 }
 
 export interface AppData {

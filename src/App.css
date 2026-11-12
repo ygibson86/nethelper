@@ -269,6 +269,12 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .tpl-item.disabled { opacity: .5; cursor: not-allowed; }
 .tpl-item.disabled:hover { border-color: var(--border-soft); background: var(--surface); }
 .tpl-item-top { display: flex; align-items: center; justify-content: space-between; }
+.tpl-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tpl-fav { display: inline-flex; align-items: center; justify-content: center; padding: 3px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); line-height: 0; cursor: pointer; transition: color .15s ease, background .15s ease; }
+.tpl-fav:hover { background: var(--surface-3); color: var(--text); }
+.tpl-fav.on { color: #facc15; filter: drop-shadow(0 0 4px rgba(250, 204, 21, .45)); }
+.tpl-fav:disabled { opacity: .5; cursor: not-allowed; }
+.tpl-view-title { display: flex; align-items: center; gap: 8px; }
 .tpl-item strong { font-size: .8rem; color: var(--text); }
 .tpl-item-desc { color: var(--muted); font-size: .68rem; line-height: 1.35; }
 .tpl-vendor-badge { align-self: flex-start; display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--surface-3); color: var(--accent); border: 1px solid var(--border-soft); }

@@ -37,7 +37,7 @@ export function parseAppData(input: unknown): { data?: AppData; errors: string[]
   if (!settings || !['dark', 'light'].includes(String(settings.theme)) || typeof settings.fontSize !== 'number' || settings.fontSize < 12 || settings.fontSize > 24 || (settings.portsPerRow !== undefined && (!Number.isInteger(settings.portsPerRow) || Number(settings.portsPerRow) < 1 || Number(settings.portsPerRow) > 128)) || (settings.pingEnabled !== undefined && typeof settings.pingEnabled !== 'boolean')) errors.push('Некорректные настройки интерфейса.')
 
   const templates = input.configTemplates === undefined ? [] : input.configTemplates
-  if (!Array.isArray(templates) || !templates.every((template) => record(template) && nonEmptyStrings(template, ['id']) && requiredStrings(template, ['title', 'description', 'body', 'updatedAt']) && String(template.updatedAt).length <= 128 && ['eltex', 'cisco'].includes(String(template.vendor)))) errors.push('Некорректные шаблоны конфигураций.')
+  if (!Array.isArray(templates) || !templates.every((template) => record(template) && nonEmptyStrings(template, ['id']) && requiredStrings(template, ['title', 'description', 'body', 'updatedAt']) && String(template.updatedAt).length <= 128 && ['eltex', 'cisco'].includes(String(template.vendor)) && (template.favorite === undefined || typeof template.favorite === 'boolean'))) errors.push('Некорректные шаблоны конфигураций.')
 
   const groups = input.groups === undefined ? undefined : input.groups
   if (groups !== undefined && !strings(groups)) errors.push('Некорректный список групп шкафов.')

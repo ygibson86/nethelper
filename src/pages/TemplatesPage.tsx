@@ -1,4 +1,4 @@
-import { Copy, FileCode2, Pencil, Plus, Search, Trash2, Check, X } from 'lucide-react'
+import { Copy, FileCode2, Pencil, Plus, Search, Star, Trash2, Check, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Modal } from '../components/Layout'
 import { ConfigHighlight } from '../components/ConfigHighlight'
@@ -58,7 +58,7 @@ function EditorModal({ template, onClose }: { template: ConfigTemplate | null; o
   </Modal>
 }
 
-function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { template: ConfigTemplate; highlight: string; onEdit: () => void; editing: boolean; onEditingChange: (value: boolean) => void }) {
+function ViewCard({ template, highlight, onEdit, onToggleFavorite, editing, onEditingChange }: { template: ConfigTemplate; highlight: string; onEdit: () => void; onToggleFavorite: () => void; editing: boolean; onEditingChange: (value: boolean) => void }) {
   const store = useNetHelper()
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState('')
@@ -96,7 +96,10 @@ function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { t
   return <section className="tpl-view">
     <div className="tpl-view-head">
       <div>
-        <div className="tpl-vendor-badge">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</div>
+        <div className="tpl-view-title">
+          <button type="button" className={`tpl-fav ${template.favorite ? 'on' : ''}`} aria-pressed={Boolean(template.favorite)} aria-label={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} title={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} onClick={onToggleFavorite} disabled={editing}><Star size={20} fill={template.favorite ? 'currentColor' : 'none'} /></button>
+          <div className="tpl-vendor-badge">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</div>
+        </div>
         <h2>{template.title}</h2>
         {template.description && <p className="page-subtitle">{template.description}</p>}
       </div>
@@ -128,6 +131,7 @@ function ViewCard({ template, highlight, onEdit, editing, onEditingChange }: { t
 
 export function TemplatesPage() {
   const templates = useNetHelper((state) => state.configTemplates)
+  const updateConfigTemplate = useNetHelper((state) => state.updateConfigTemplate)
   const [query, setQuery] = useState('')
   const [vendor, setVendor] = useState<'all' | 'eltex' | 'cisco'>('all')
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -144,9 +148,13 @@ export function TemplatesPage() {
           || template.description.toLowerCase().includes(q)
           || template.body.toLowerCase().includes(q)
       })
-      .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+      .sort((a, b) => Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)) || a.title.localeCompare(b.title, 'ru'))
   }, [templates, query, vendor])
   const active = filtered.find((template) => template.id === activeId) ?? filtered[0] ?? null
+  const toggleFavorite = (template: ConfigTemplate) => {
+    if (!activeId) setActiveId(active?.id ?? template.id)
+    updateConfigTemplate(template.id, { favorite: !template.favorite })
+  }
 
   return <div className="templates-page">
     <header className="page-header"><div><p className="eyebrow">Библиотека</p><h1>Шаблоны</h1><p className="page-subtitle">Готовые конфигурации Cisco и Eltex для копирования</p></div></header>
@@ -164,19 +172,23 @@ export function TemplatesPage() {
         </div>
 
         <div className="templates-list">
-          {filtered.map((template) => (
-            <button key={template.id} className={`tpl-item ${active?.id === template.id ? 'active' : ''} ${inlineEditId && inlineEditId !== template.id ? 'disabled' : ''}`} onClick={() => { if (inlineEditId) return; setActiveId(template.id) }}>
-              <span className="tpl-item-top"><span className="tpl-vendor-badge small">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span></span>
+          {filtered.map((template) => {
+            const locked = Boolean(inlineEditId && inlineEditId !== template.id)
+            return <div key={template.id} role="button" tabIndex={0} className={`tpl-item ${active?.id === template.id ? 'active' : ''} ${locked ? 'disabled' : ''}`} onClick={() => { if (inlineEditId) return; setActiveId(template.id) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!inlineEditId) setActiveId(template.id) } }}>
+              <span className="tpl-item-top">
+                <span className="tpl-vendor-badge small">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span>
+                <button type="button" className={`tpl-fav ${template.favorite ? 'on' : ''}`} aria-pressed={Boolean(template.favorite)} aria-label={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} title={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} disabled={locked} onClick={(event) => { event.stopPropagation(); toggleFavorite(template) }}><Star size={15} fill={template.favorite ? 'currentColor' : 'none'} /></button>
+              </span>
               <strong>{template.title}</strong>
               {template.description && <span className="tpl-item-desc">{template.description}</span>}
-            </button>
-          ))}
+            </div>
+          })}
           {filtered.length === 0 && <p className="tpl-empty">Ничего не найдено.</p>}
         </div>
       </aside>
 
       {active ? (
-        <ViewCard key={active.id} template={active} highlight={query.trim()} onEdit={() => setEditor({ mode: 'edit', template: active })} editing={inlineEditId === active.id} onEditingChange={(value) => setInlineEditId(value ? active.id : null)} />
+        <ViewCard key={active.id} template={active} highlight={query.trim()} onEdit={() => setEditor({ mode: 'edit', template: active })} onToggleFavorite={() => toggleFavorite(active)} editing={inlineEditId === active.id} onEditingChange={(value) => setInlineEditId(value ? active.id : null)} />
       ) : (
         <section className="tpl-view tpl-empty-state">
           <FileCode2 size={40} />
