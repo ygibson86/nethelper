@@ -98,7 +98,7 @@ function ViewCard({ template, highlight, onEdit, onToggleFavorite, editing, onEd
       <div>
         <div className="tpl-view-title">
           <button type="button" className={`tpl-fav ${template.favorite ? 'on' : ''}`} aria-pressed={Boolean(template.favorite)} aria-label={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} title={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} onClick={onToggleFavorite} disabled={editing}><Star size={20} fill={template.favorite ? 'currentColor' : 'none'} /></button>
-          <div className="tpl-vendor-badge">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</div>
+          <div className={`tpl-vendor-badge vendor-${template.vendor}`}>{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</div>
         </div>
         <h2>{template.title}</h2>
         {template.description && <p className="page-subtitle">{template.description}</p>}
@@ -176,7 +176,7 @@ export function TemplatesPage() {
             const locked = Boolean(inlineEditId && inlineEditId !== template.id)
             return <div key={template.id} role="button" tabIndex={0} className={`tpl-item ${active?.id === template.id ? 'active' : ''} ${locked ? 'disabled' : ''}`} onClick={() => { if (inlineEditId) return; setActiveId(template.id) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!inlineEditId) setActiveId(template.id) } }}>
               <span className="tpl-item-top">
-                <span className="tpl-vendor-badge small">{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span>
+                <span className={`tpl-vendor-badge small vendor-${template.vendor}`}>{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span>
                 <button type="button" className={`tpl-fav ${template.favorite ? 'on' : ''}`} aria-pressed={Boolean(template.favorite)} aria-label={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} title={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} disabled={locked} onClick={(event) => { event.stopPropagation(); toggleFavorite(template) }}><Star size={15} fill={template.favorite ? 'currentColor' : 'none'} /></button>
               </span>
               <strong>{template.title}</strong>
