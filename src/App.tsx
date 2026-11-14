@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 import { AuthGate } from './components/AuthGate'
@@ -13,12 +13,17 @@ import { TopologyPage } from './pages/TopologyPage'
 
 const SshTerminalPage = lazy(() => import('./pages/SshTerminalPage').then((module) => ({ default: module.SshTerminalPage })))
 
+function RacksRoute() {
+  const { search } = useLocation()
+  return <RacksPage key={search} />
+}
+
 function App() {
   return <AuthGate><HashRouter>
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/racks" replace />} />
-        <Route path="racks" element={<RacksPage />} />
+        <Route path="racks" element={<RacksRoute />} />
         <Route path="topology" element={<TopologyPage />} />
         <Route path="topology/:id" element={<TopologyPage />} />
         <Route path="core" element={<CorePage />} />
