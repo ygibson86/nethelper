@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { globalSearch, ipSortKey } from '../src/search.ts'
 import { inspectData } from '../src/dataQuality.ts'
-import { mergeAppData } from '../src/dataMerge.ts'
 
 const fixture = () => ({
   version: 8, manufacturers: [], settings: { theme: 'dark', fontSize: 16, portsPerRow: 14, pingEnabled: false }, groups: [], configTemplates: [],
@@ -35,29 +34,4 @@ test('quality check clean fixture and diagnostics without mutation', () => {
   assert(issues.some((item) => item.category === 'Расхождение IP'))
   assert(issues.some((item) => item.id === 'link:t1:bad-link'))
   assert.equal(JSON.stringify(data), before)
-})
-test('inverse merge restores deleted records and preserves independent edits', () => {
-  const before = fixture()
-  const after = structuredClone(before)
-  after.switches = []
-  after.racks[0].switchIds = []
-  after.corePanels = []
-  delete after.topologies[0].nodes[0].switchId
-  const current = structuredClone(after)
-  current.settings.fontSize = 18
-  current.topologies[0].nodes[0].x = 250
-  const restored = mergeAppData(after, current, before)
-  assert.deepEqual(restored.conflicts, [])
-  assert.equal(restored.data.switches.length, 1)
-  assert.equal(restored.data.topologies[0].nodes[0].switchId, 'd1')
-  assert.equal(restored.data.topologies[0].nodes[0].x, 250)
-  assert.equal(restored.data.settings.fontSize, 18)
-})
-test('inverse merge reports conflicting relink instead of silently overriding it', () => {
-  const before = fixture()
-  const after = structuredClone(before)
-  delete after.topologies[0].nodes[0].switchId
-  const current = structuredClone(after)
-  current.topologies[0].nodes[0].switchId = 'different-device'
-  assert(mergeAppData(after, current, before).conflicts.length > 0)
 })

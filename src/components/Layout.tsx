@@ -4,7 +4,6 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useNetHelper } from '../store'
 import { logout } from '../api'
 import { GlobalSearch } from './GlobalSearch'
-import { RecoveryHistory } from './RecoveryHistory'
 import { useSaveState } from './saveState'
 
 const pageNames: Record<string, string> = {
@@ -102,7 +101,6 @@ export function Layout() {
           <NavLink to="/terminal" target="_blank" rel="noopener" onClick={() => setMobileNavOpen(false)}><SquareTerminal size={19} /> Терминал</NavLink>
         </nav>
         <div className="sidebar-bottom">
-          <RecoveryHistory />
           <NavLink to="/settings" onClick={() => setMobileNavOpen(false)}><Settings size={19} /> Настройки</NavLink>
           <button className="theme-toggle" aria-pressed={settings.theme === 'light'} onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}>
             {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}

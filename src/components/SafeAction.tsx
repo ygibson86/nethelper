@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react'
 import { downloadBackup } from '../backup'
-import { recoverable } from '../recovery'
 import { useNetHelper } from '../store'
 import { Modal } from './Layout'
 
@@ -17,12 +16,12 @@ export function SafeAction({ title, details, children, onConfirm, className = 'b
       if (confirmWord && word !== confirmWord) return
       try {
         if (backup) downloadBackup(useNetHelper.getState(), 'nethelper-before-change')
-        recoverable(title, onConfirm)
+        onConfirm()
         setOpen(false)
-      } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось сохранить страховочную копию. Действие отменено.') }
+      } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось выполнить действие.') }
     }}>
       <div>{details}</div>
-      <p className="page-subtitle">До изменения сохраняется копия в истории восстановления этой вкладки. Она переживает обновление страницы, но не закрытие вкладки. Это не серверный бэкап.</p>
+      <p className="page-subtitle">Действие изменит общие данные на сервере. Автоматической корзины нет.</p>
       {backup && <p>Перед выполнением также будет скачан JSON-бэкап текущих данных.</p>}
       {confirmWord && <label>Для подтверждения введите <strong>{confirmWord}</strong><input autoFocus value={word} onChange={(event) => setWord(event.target.value)} autoComplete="off" /></label>}
       {error && <p className="field-error" role="alert">{error}</p>}
