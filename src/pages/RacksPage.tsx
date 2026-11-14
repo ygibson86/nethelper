@@ -1,9 +1,12 @@
-import { ArrowDown, ArrowUp, Edit3, Eye, Folder, FolderPlus, MapPin, Monitor, Plus, Search, Terminal, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Edit3, Eye, Folder, FolderPlus, MapPin, Monitor, Plus, Search, Table2, Terminal, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useNetHelper } from '../store'
 import type { DeviceType, NetworkSwitch, Rack } from '../types'
 import { Modal } from '../components/Layout'
+import { SafeAction } from '../components/SafeAction'
+import { ipSortKey } from '../search'
+import { useLocalPreference } from '../useLocalPreference'
 
 const deviceTypes: Record<DeviceType, string> = { switch: 'Коммутатор', router: 'Маршрутизатор', pc: 'Компьютер', server: 'Сервер', firewall: 'Межсетевой экран', 'access-point': 'Точка доступа', printer: 'Принтер', phone: 'IP-телефон', camera: 'Камера', cloud: 'Облачное устройство', ups: 'ИБП', nas: 'Сетевое хранилище', 'patch-panel': 'Патч-панель', text: 'Текст', group: 'Группа' }
 const emptySwitch = { hostname: '', ip: '', manufacturerId: '', deviceType: 'switch' as Exclude<DeviceType, 'group'>, model: '', accessMethods: [] as ('ssh' | 'rdp')[], description: '', topologyId: '', isCore: false }
@@ -18,11 +21,14 @@ function contrastText(hex: string) {
 
 export function RacksPage() {
   const { racks, groups = [], switches, manufacturers, topologies, addRack, updateRack, deleteRack, addGroup: createGroup, renameGroup: renameStoredGroup, deleteGroup: deleteStoredGroup, moveRack, moveRackTo, addSwitch, updateSwitch, deleteSwitch, moveSwitch, moveSwitchTo } = useNetHelper()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const targetDeviceId = searchParams.get('device')
   const targetDevice = switches.find((item) => item.id === targetDeviceId)
   const [query, setQuery] = useState<string | null>(null)
-  const effectiveQuery = query ?? targetDevice?.hostname ?? ''
+  const effectiveQuery = query ?? searchParams.get('ip') ?? targetDevice?.hostname ?? ''
+  const [view, setView] = useLocalPreference<'racks' | 'table'>('nethelper-racks-view', 'racks')
+  const [collapsedGroups, setCollapsedGroups] = useLocalPreference<string[]>('nethelper-collapsed-groups', [])
+  const [sort, setSort] = useState<'ip' | 'hostname' | 'rack'>('ip')
   const [ipLastOctet, setIpLastOctet] = useState('')
   const [editMode, setEditMode] = useState(false)
   const [editing, setEditing] = useState<NetworkSwitch | null>(null)
@@ -73,6 +79,19 @@ export function RacksPage() {
     })
     return [...groups.entries()]
   }, [filteredRacks])
+
+  const tableDevices = useMemo(() => filteredRacks.flatMap(({ rack, devices }) => devices.map((device) => ({ rack, device }))).sort((left, right) => {
+    if (sort === 'hostname') return left.device.hostname.localeCompare(right.device.hostname, 'ru')
+    if (sort === 'rack') return left.rack.name.localeCompare(right.rack.name, 'ru', { numeric: true }) || left.device.hostname.localeCompare(right.device.hostname, 'ru')
+    return ipSortKey(left.device.ip).localeCompare(ipSortKey(right.device.ip)) || left.device.hostname.localeCompare(right.device.hostname, 'ru')
+  }), [filteredRacks, sort])
+  const clearFilters = () => { setQuery(''); setIpLastOctet(''); setSearchParams({}, { replace: true }) }
+  const resetQuery = () => { setQuery(''); setSearchParams({}, { replace: true }) }
+  const deletionDetails = (ids: string[]) => {
+    const panels = useNetHelper.getState().corePanels.filter((panel) => ids.includes(panel.switchId)).length
+    const nodes = topologies.reduce((count, topology) => count + topology.nodes.filter((node) => node.switchId && ids.includes(node.switchId)).length, 0)
+    return `Удалится устройств: ${ids.length}; Core-панелей: ${panels}. Узлов на схемах будет отвязано: ${nodes}. Сами узлы и их IP останутся.`
+  }
 
   const openDeviceTopology = (item: NetworkSwitch) => {
     const matches = topologies.flatMap((topology) => topology.nodes.filter((node) => node.ip === item.ip || node.switchId === item.id || node.label.trim().toLowerCase() === item.hostname.trim().toLowerCase()).map((node) => ({ topologyId: topology.id, topologyName: topology.name, deviceKey: node.switchId ?? (node.ip === item.ip ? node.ip : item.hostname), nodeLabel: node.label })))
@@ -152,10 +171,11 @@ export function RacksPage() {
       <div><p className="eyebrow">Инфраструктура</p><h1>Шкафы</h1><p className="page-subtitle">Физическое расположение сетевого оборудования</p></div>
       <div className="toolbar"><div className="mode-switch"><button aria-pressed={!editMode} className={!editMode ? 'active' : ''} onClick={() => setEditMode(false)}><Eye size={16} /> Просмотр</button><button aria-pressed={editMode} className={editMode ? 'active' : ''} onClick={() => setEditMode(true)}><Edit3 size={16} /> Редактирование</button></div>{editMode && <><button className="button" onClick={() => setGroupManagerOpen(true)}><FolderPlus size={17} /> Группы</button><button className="button primary" onClick={() => { const name = prompt('Название нового шкафа'); if (name?.trim()) addRack(name.trim()) }}><Plus size={18} /> Добавить шкаф</button></>}</div>
     </header>
-    <div className="rack-search-controls"><div className="search-box"><Search size={19} /><input aria-label="Поиск по шкафам и оборудованию" value={effectiveQuery} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по шкафам, группам, расположению и оборудованию..." /><kbd>{filteredRacks.length} шкаф.</kbd></div><div className="ip-filter-box"><input value={ipLastOctet} onChange={(event) => { const value = event.target.value.replace(/\D/g, '').slice(0, 3); setIpLastOctet(value ? String(Math.min(255, Number(value))) : '') }} inputMode="numeric" pattern="[0-9]*" placeholder="IP" aria-label="Последний октет IP-адреса" title="Фильтр по последнему октету IP-адреса" /></div></div>
-    {groupedRacks.map(([group, items]) => <section className="rack-group" key={group}>
-      <div className="rack-group-title"><Folder size={17} /><h2>{group}</h2><span>{items.length}</span></div>
-      <div className="racks-grid">
+    <div className="rack-search-controls"><div className="search-box"><Search size={19} /><input aria-label="Поиск по шкафам и оборудованию" value={effectiveQuery} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по шкафам, группам, расположению и оборудованию..." />{effectiveQuery && <button className="icon-button" aria-label="Очистить поиск" onClick={resetQuery}><X size={16} /></button>}</div><div className="ip-filter-box"><input value={ipLastOctet} onChange={(event) => { const value = event.target.value.replace(/\D/g, '').slice(0, 3); setIpLastOctet(value ? String(Math.min(255, Number(value))) : '') }} inputMode="numeric" pattern="[0-9]*" placeholder="IP: .123" aria-label="Последний октет IP-адреса" title="Фильтр по последнему октету IP-адреса" />{ipLastOctet && <button className="icon-button" aria-label="Очистить последний октет" onClick={() => setIpLastOctet('')}><X size={16} /></button>}</div></div>
+    <div className="racks-view-toolbar"><span role="status">Найдено: {tableDevices.length} устр. · {filteredRacks.length} шкаф.</span><div className="toolbar">{(effectiveQuery || ipLastOctet) && <button className="button" onClick={clearFilters}>Сбросить фильтры</button>}<div className="segmented"><button aria-pressed={view !== 'table'} className={view !== 'table' ? 'active' : ''} onClick={() => setView('racks')}><Folder size={15} /> Шкафы</button><button aria-pressed={view === 'table'} className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}><Table2 size={15} /> Таблица</button></div></div></div>
+    {view === 'table' ? <><label className="table-sort">Сортировка <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="ip">По IP</option><option value="hostname">По hostname</option><option value="rack">По шкафу</option></select></label><div className="device-table-wrap"><table className="device-table"><thead><tr><th>Hostname / IP</th><th>Производитель / модель</th><th>Шкаф / группа</th><th>Действия</th></tr></thead><tbody>{tableDevices.map(({ device, rack }) => <tr id={`device-${device.id}`} key={device.id} className={device.id === targetDeviceId ? 'highlighted' : ''}><td><button className="table-device-link" onClick={() => openDeviceTopology(device)}>{device.hostname}</button><span>{device.ip || 'IP не указан'}</span></td><td>{manufacturers.find((vendor) => vendor.id === device.manufacturerId)?.name || '—'}<span>{device.model}</span></td><td>{rack.name}<span>{[rack.group, rack.location].filter(Boolean).join(' · ')}</span></td><td><div className="toolbar"><button className="button" onClick={() => openDeviceTopology(device)}>Схема</button>{device.accessMethods?.includes('ssh') && <button className="icon-button" aria-label={`SSH ${device.hostname}`} onClick={() => window.open(`${window.location.origin}${window.location.pathname}#/terminal/${encodeURIComponent(device.id)}`, '_blank', 'noopener')}><Terminal size={16} /></button>}{editMode && <button className="icon-button" aria-label={`Изменить ${device.hostname}`} onClick={() => openEdit(device)}><Edit3 size={16} /></button>}</div></td></tr>)}</tbody></table>{!tableDevices.length && <p className="tpl-empty">Устройства не найдены.</p>}</div></> : groupedRacks.map(([group, items]) => <section className="rack-group" key={group}>
+      <button className="rack-group-title rack-group-toggle" aria-expanded={!collapsedGroups.includes(group) || Boolean(effectiveQuery || ipLastOctet)} onClick={() => setCollapsedGroups(collapsedGroups.includes(group) ? collapsedGroups.filter((item) => item !== group) : [...collapsedGroups, group])}>{collapsedGroups.includes(group) && !effectiveQuery && !ipLastOctet ? <ChevronRight size={17} /> : <ChevronDown size={17} />}<Folder size={17} /><strong>{group}</strong><span>{items.length}</span></button>
+      {(!collapsedGroups.includes(group) || Boolean(effectiveQuery || ipLastOctet)) && <div className="racks-grid">
         {items.map(({ rack, devices: rackSwitches }) => <article className={`rack ${editMode ? 'editable' : ''} ${draggedRackId === rack.id ? 'dragging' : ''}`} key={rack.id} draggable={editMode && !effectiveQuery && !ipLastOctet} onDragStart={(event) => { if (!editMode) return; setDraggedRackId(rack.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', rack.id) }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={(event) => { event.preventDefault(); const sourceId = event.dataTransfer.getData('text/plain'); if (sourceId) { if (rack.group) updateRack(sourceId, { group: rack.group }); moveRackTo(sourceId, rack.id) } setDraggedRackId(null) }} onDragEnd={() => setDraggedRackId(null)}>
           <div className="rack-top">
             <div><h2>{rack.name}</h2><p><MapPin size={14} /> {rack.location || 'Расположение не указано'}</p></div>
@@ -164,7 +184,7 @@ export function RacksPage() {
               {editMode && <><button className="icon-button" title="Переместить раньше" disabled={racks[0]?.id === rack.id} onClick={() => moveRack(rack.id, -1)}><ArrowUp size={15} /></button>
               <button className="icon-button" title="Переместить позже" disabled={racks[racks.length - 1]?.id === rack.id} onClick={() => moveRack(rack.id, 1)}><ArrowDown size={15} /></button>
               <button className="icon-button" title="Редактировать шкаф" onClick={() => openRackEdit(rack)}><Edit3 size={15} /></button>
-              <button className="icon-button danger" title="Удалить шкаф" onClick={() => confirm(`Удалить шкаф «${rack.name}» и все устройства?`) && deleteRack(rack.id)}><Trash2 size={15} /></button></>}
+              <SafeAction className="icon-button danger" title={`Удалить шкаф «${rack.name}»`} details={deletionDetails(switches.filter((device) => device.rackId === rack.id).map((device) => device.id))} onConfirm={() => deleteRack(rack.id)}><Trash2 size={15} /></SafeAction></>}
             </div>
           </div>
           <div className="rack-frame"><div className="rack-rail left" /><div className="rack-rail right" /><div className="rack-devices">
@@ -173,14 +193,14 @@ export function RacksPage() {
                return <div id={`device-${item.id}`} className={`switch-card ${targetDeviceId === item.id ? 'highlighted' : ''} ${draggedSwitchId === item.id ? 'dragging' : ''} ${switchDropTarget?.id === item.id ? `drop-${switchDropTarget.position}` : ''}`} key={item.id} style={{ '--vendor': vendor?.color ?? '#64748b' } as React.CSSProperties} draggable={editMode && !effectiveQuery && !ipLastOctet} onDragStart={(event) => { event.stopPropagation(); setDraggedSwitchId(item.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.id) }} onDragOver={(event) => { if (!editMode) return; event.preventDefault(); event.stopPropagation(); const bounds = event.currentTarget.getBoundingClientRect(); setSwitchDropTarget({ id: item.id, position: event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after' }) }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSwitchDropTarget(null) }} onDrop={(event) => { if (!editMode) return; event.preventDefault(); event.stopPropagation(); const sourceId = event.dataTransfer.getData('text/plain'); const position = switchDropTarget?.id === item.id ? switchDropTarget.position : 'before'; if (sourceId) moveSwitchTo(rack.id, sourceId, item.id, position); setDraggedSwitchId(null); setSwitchDropTarget(null) }} onDragEnd={() => { setDraggedSwitchId(null); setSwitchDropTarget(null) }}>
                                  <button className="switch-open" aria-label={`Открыть устройство ${item.hostname} на схеме`} onClick={() => openDeviceTopology(item)} />
                  <span className="vendor-badge" style={{ color: contrastText(vendor?.color ?? '#64748b') }}>{vendor?.abbreviation ?? '?'}</span><div className="switch-info"><strong>{item.hostname}</strong><span>{item.ip || 'IP не указан'}</span><small>{[deviceTypes[item.deviceType === 'group' ? 'switch' : item.deviceType], item.model, item.description].filter(Boolean).join(' · ') || vendor?.name}</small></div>{item.accessMethods?.length > 0 && <div className="switch-access" onClick={(event) => event.stopPropagation()}>{item.accessMethods.includes('ssh') && <button aria-label={`Открыть SSH для ${item.hostname}`} title="Открыть SSH-терминал" onClick={() => window.open(`${window.location.origin}${window.location.pathname}#/terminal/${encodeURIComponent(item.id)}`, '_blank', 'noopener')}><Terminal size={14} /></button>}{item.accessMethods.includes('rdp') && <button title="Подключение по RDP — будет реализовано позже" disabled><Monitor size={14} /></button>}</div>}
-                 {editMode && <div className="switch-controls" onClick={(event) => event.stopPropagation()}><button aria-label={`Переместить ${item.hostname} выше`} disabled={Boolean(effectiveQuery || ipLastOctet) || itemIndex === 0} onClick={() => moveSwitch(rack.id, item.id, -1)}><ArrowUp size={14} /></button><button aria-label={`Переместить ${item.hostname} ниже`} disabled={Boolean(effectiveQuery || ipLastOctet) || itemIndex === rackSwitches.length - 1} onClick={() => moveSwitch(rack.id, item.id, 1)}><ArrowDown size={14} /></button><button aria-label={`Изменить ${item.hostname}`} title="Изменить" onClick={() => openEdit(item)}><Edit3 size={14} /></button><button className="danger" aria-label={`Удалить ${item.hostname}`} title="Удалить" onClick={() => confirm(`Удалить ${item.hostname}?`) && deleteSwitch(item.id)}><Trash2 size={14} /></button></div>}
+                 {editMode && <div className="switch-controls" onClick={(event) => event.stopPropagation()}><button aria-label={`Переместить ${item.hostname} выше`} disabled={Boolean(effectiveQuery || ipLastOctet) || itemIndex === 0} onClick={() => moveSwitch(rack.id, item.id, -1)}><ArrowUp size={14} /></button><button aria-label={`Переместить ${item.hostname} ниже`} disabled={Boolean(effectiveQuery || ipLastOctet) || itemIndex === rackSwitches.length - 1} onClick={() => moveSwitch(rack.id, item.id, 1)}><ArrowDown size={14} /></button><button aria-label={`Изменить ${item.hostname}`} title="Изменить" onClick={() => openEdit(item)}><Edit3 size={14} /></button><SafeAction className="danger" title={`Удалить ${item.hostname}`} details={deletionDetails([item.id])} onConfirm={() => deleteSwitch(item.id)}><Trash2 size={14} /></SafeAction></div>}
               </div>
             })}
              {rackSwitches.length === 0 && <div className="empty-slot">{effectiveQuery || ipLastOctet ? 'Нет совпадений' : 'Шкаф пуст'}</div>}
           </div></div>
           {editMode && <button className="button rack-add" onClick={() => openAdd(rack.id)}><Plus size={16} /> Добавить устройство</button>}
         </article>)}
-      </div>
+      </div>}
     </section>)}
     {filteredRacks.length === 0 && <div className="empty-state"><Search size={38} /><h2>Шкафы не найдены</h2><p>Измените поисковый запрос.</p></div>}
     {routeChoices.length > 0 && <Modal title="Устройство найдено на нескольких схемах" onClose={() => setRouteChoices([])}><div className="route-choices"><p>Выберите схему, которую нужно открыть:</p>{routeChoices.map((choice) => <button key={`${choice.topologyId}-${choice.nodeLabel}`} className="route-choice" onClick={() => openRouteChoice(choice)}><strong>{choice.topologyName}</strong><span>{choice.nodeLabel}</span></button>)}</div></Modal>}

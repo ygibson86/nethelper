@@ -6,7 +6,8 @@ import { useNetHelper } from '../store'
 import type { CableType, DeviceType, HandleLayout, HandleSide, NetworkSwitch, TopologyLink, TopologyNode } from '../types'
 import { Modal } from '../components/Layout'
 import { useSaveState } from '../components/saveState'
-import { useNodePing, type NodePingState } from '../usePing'
+import { useNodePing, pingTitle, type NodePingState } from '../usePing'
+import { SafeAction } from '../components/SafeAction'
 
 interface DeviceNodeData extends Record<string, unknown> { label: string; name?: string; ip?: string; text?: string; type: DeviceType; color: string; manufacturerId?: string; handles: HandleLayout; switchId?: string; highlighted?: boolean; width?: number; height?: number; fontSize?: number; groupLabelPosition?: 'top' | 'center'; ping?: NodePingState; resizeGroup?: (width: number, height: number) => void }
 type DeviceFlowNode = Node<DeviceNodeData, 'device' | 'group' | 'text'>
@@ -14,7 +15,7 @@ interface LinkEdgeData extends Record<string, unknown> { sourcePort: string; tar
 type LinkFlowEdge = Edge<LinkEdgeData, 'networkLink'>
 
 type LinkForm = Omit<TopologyLink, 'id'> & { id?: string }
-type DeletionSnapshot = { topologyId: string; nodes: TopologyNode[]; links: TopologyLink[]; message: string }
+type DeletionSnapshot = { topologyId: string; nodes: TopologyNode[]; links: TopologyLink[]; message: string; positions?: { id: string; before: { x: number; y: number }; after: { x: number; y: number } }[] }
 const defaultHandles: HandleLayout = { top: 1, bottom: 1, left: 1, right: 1 }
 const emptyNodeList: TopologyNode[] = []
 
@@ -78,12 +79,6 @@ function NodeTypeIcon({ type, size = 20 }: { type: DeviceType; size?: number }) 
   return <Icon size={size} />
 }
 
-function pingTitle(ping: NodePingState) {
-  if (ping.status === 'pending') return 'ICMP: проверка…'
-  if (ping.status === 'down') return 'ICMP: не отвечает'
-  return `ICMP: доступен${ping.rtt !== undefined ? `, ${ping.rtt} мс` : ''}`
-}
-
 function DeviceNode({ data, selected }: NodeProps<DeviceFlowNode>) {
   return <div className={`flow-device ${selected ? 'selected' : ''} ${data.highlighted ? 'highlighted' : ''}`} style={{ '--node-color': data.color } as React.CSSProperties}>
     {selected && <span className="selection-mark">✓</span>}
@@ -108,11 +103,47 @@ export function TopologyPage() {
   const { topologies, switches, manufacturers, settings, addTopology, updateTopology, deleteTopology } = useNetHelper()
   const saveState = useSaveState()
   const active = topologies.find((item) => item.id === id) ?? topologies[0]
-  const pingStates = useNodePing(active?.nodes ?? emptyNodeList, settings.pingEnabled)
+  const { states: pingStates, checking: pingChecking, refresh: refreshPing } = useNodePing(active?.nodes ?? emptyNodeList, settings.pingEnabled)
+  const highlightedNode = searchParams.get('node')
   const highlightedDevice = searchParams.get('device')
   const highlightedPort = searchParams.get('port')
   const [editMode, setEditMode] = useState(false)
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
+  const [nodeDraft, setNodeDraft] = useState<TopologyNode | null>(null)
+  const [nodeIsNew, setNodeIsNew] = useState(false)
+  const nodeOriginal = useRef<TopologyNode | null>(null)
+  const nodeEditorTopology = useRef('')
+  const [nodeError, setNodeError] = useState('')
+  const beginNodeEdit = (node: TopologyNode, isNew = false) => {
+    if (!editMode || !active) return
+    nodeOriginal.current = isNew ? null : structuredClone(node)
+    setNodeIsNew(isNew)
+    nodeEditorTopology.current = active.id
+    setNodeDraft(structuredClone(node)); setEditingNodeId(node.id); setNodeError(''); setDeviceFilter('')
+  }
+  const closeNodeEditor = () => { setEditingNodeId(null); setNodeDraft(null); setNodeError('') }
+  const saveNodeDraft = (event: FormEvent) => {
+    event.preventDefault()
+    if (!nodeDraft) return
+    const topology = useNetHelper.getState().topologies.find((item) => item.id === nodeEditorTopology.current)
+    if (!topology) { setNodeError('Схема удалена в другой вкладке. Изменения не сохранены.'); return }
+    const original = nodeOriginal.current
+    if (!original) updateTopology(topology.id, { nodes: [...topology.nodes, nodeDraft] })
+    else {
+      const latest = topology.nodes.find((node) => node.id === original.id)
+      if (!latest) { setNodeError('Узел удалён в другой вкладке.'); return }
+      const patch: Partial<TopologyNode> = {}
+      for (const key of Object.keys(nodeDraft) as (keyof TopologyNode)[]) {
+        if (JSON.stringify(nodeDraft[key]) === JSON.stringify(original[key])) continue
+        if (JSON.stringify(latest[key]) !== JSON.stringify(original[key])) { setNodeError('Эти поля уже изменены в другой вкладке. Закройте форму и откройте её снова.'); return }
+        Object.assign(patch, { [key]: nodeDraft[key] })
+      }
+      updateTopology(topology.id, { nodes: topology.nodes.map((node) => node.id === latest.id ? { ...node, ...patch } : node) })
+    }
+    closeNodeEditor()
+  }
+  const updateNodeDraft = (_id: string, patch: { nodes: TopologyNode[] }) => setNodeDraft(patch.nodes.find((node) => node.id === editingNodeId) ?? null)
+  const draftNodes = nodeDraft ? [...(active?.nodes ?? []).filter((node) => node.id !== nodeDraft.id), nodeDraft] : active?.nodes ?? []
   const [viewingNodeId, setViewingNodeId] = useState<string | null>(null)
   const [linkForm, setLinkForm] = useState<LinkForm | null>(null)
   const [copiedNodes, setCopiedNodes] = useState<TopologyNode[]>([])
@@ -125,7 +156,7 @@ export function TopologyPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<DeviceFlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<LinkFlowEdge>([])
   const [deviceFilter, setDeviceFilter] = useState('')
-  const linkedSwitchId = active?.nodes.find((node) => node.id === editingNodeId)?.switchId
+  const linkedSwitchId = nodeDraft?.switchId
   const deviceOptions = useMemo(() => {
     const sorted = [...switches].sort((left, right) => ipSortKey(left.ip).localeCompare(ipSortKey(right.ip)) || left.hostname.localeCompare(right.hostname))
     const query = deviceFilter.trim().toLowerCase()
@@ -162,12 +193,12 @@ export function TopologyPage() {
            fontSize: node.fontSize,
            groupLabelPosition: node.groupLabelPosition,
           switchId: node.switchId,
-          highlighted: node.switchId === highlightedDevice || node.ip === highlightedDevice || node.label === highlightedDevice,
+          highlighted: node.id === highlightedNode || node.switchId === highlightedDevice || node.ip === highlightedDevice || node.label === highlightedDevice,
           resizeGroup: node.type === 'group' && active ? (width: number, height: number) => updateTopology(active.id, { nodes: active.nodes.map((item) => item.id === node.id ? { ...item, width, height } : item) }) : undefined,
         },
       } as DeviceFlowNode
     }))
-  }, [active, highlightedDevice, manufacturers, setNodes, updateTopology])
+  }, [active, highlightedDevice, highlightedNode, manufacturers, setNodes, updateTopology])
   useEffect(() => {
     setNodes((current) => current.map((node) => node.data.ping === pingStates[node.id] ? node : { ...node, data: { ...node.data, ping: pingStates[node.id] } }))
   }, [pingStates, setNodes])
@@ -179,8 +210,8 @@ export function TopologyPage() {
   }, [active?.links, highlightedPort, setEdges])
 
   useEffect(() => {
-    if (!highlightedDevice) centeredDeviceRef.current = null
-  }, [highlightedDevice])
+    if (!highlightedDevice && !highlightedNode) centeredDeviceRef.current = null
+  }, [highlightedDevice, highlightedNode])
 
   const filteredTopologies = useMemo(() => {
     const query = topologyQuery.trim().toLowerCase()
@@ -189,10 +220,11 @@ export function TopologyPage() {
   }, [topologies, topologyQuery])
 
   useEffect(() => {
-    if (!flowInstance || !highlightedDevice || centeredDeviceRef.current === `${active?.id}:${highlightedDevice}`) return
-    const target = nodes.find((node) => node.data.switchId === highlightedDevice || node.data.ip === highlightedDevice || node.data.label === highlightedDevice)
+    const traceKey = `${active?.id}:${highlightedNode ?? highlightedDevice}`
+    if (!flowInstance || (!highlightedDevice && !highlightedNode) || centeredDeviceRef.current === traceKey) return
+    const target = nodes.find((node) => highlightedNode ? node.id === highlightedNode : node.data.switchId === highlightedDevice || node.data.ip === highlightedDevice || node.data.label === highlightedDevice)
     if (!target) return
-    centeredDeviceRef.current = `${active?.id}:${highlightedDevice}`
+    centeredDeviceRef.current = traceKey
     fittedTopologyRef.current = active?.id ?? null
     const timer = window.setTimeout(() => {
       const currentTarget = flowInstance.getNode(target.id)
@@ -202,13 +234,13 @@ export function TopologyPage() {
       void flowInstance.setCenter(currentTarget.position.x + width / 2, currentTarget.position.y + height / 2, { zoom: 1.35, duration: 800 })
     }, 120)
     return () => window.clearTimeout(timer)
-  }, [active?.id, flowInstance, highlightedDevice, nodes])
+  }, [active?.id, flowInstance, highlightedDevice, highlightedNode, nodes])
 
   const activeNodeSignature = useMemo(() => (active?.nodes ?? []).map((node) => node.id).sort().join('|'), [active?.nodes])
   const canvasNodeSignature = useMemo(() => nodes.map((node) => node.id).sort().join('|'), [nodes])
 
   useEffect(() => {
-    if (!flowInstance || !active || highlightedDevice || fittedTopologyRef.current === active.id) return
+    if (!flowInstance || !active || highlightedDevice || highlightedNode || fittedTopologyRef.current === active.id) return
     if (activeNodeSignature !== canvasNodeSignature) return
     fittedTopologyRef.current = active.id
     const timer = window.setTimeout(() => {
@@ -219,21 +251,26 @@ export function TopologyPage() {
       void flowInstance.fitView({ padding: .18, duration: 500, minZoom: .1, maxZoom: 1.5 })
     }, 120)
     return () => window.clearTimeout(timer)
-  }, [active, activeNodeSignature, canvasNodeSignature, flowInstance, highlightedDevice])
+  }, [active, activeNodeSignature, canvasNodeSignature, flowInstance, highlightedDevice, highlightedNode])
 
   const pushDeletion = useCallback((snapshot: DeletionSnapshot) => {
     setUndoHistory((history) => [...history, snapshot].slice(-20))
     setUndoNoticeVisible(true)
-  }, [])
+  }, [setUndoHistory, setUndoNoticeVisible])
   const onNodeDragStop = useCallback((_: MouseEvent | TouchEvent, draggedNode: DeviceFlowNode) => {
     if (!active || !editMode) return
     const flowNodes = flowInstance?.getNodes() ?? nodes
     const positions = new Map(flowNodes.map((node) => [node.id, node.id === draggedNode.id ? draggedNode.position : node.position]))
+    const moved = active.nodes.flatMap((node) => {
+      const after = positions.get(node.id)
+      return after && (after.x !== node.x || after.y !== node.y) ? [{ id: node.id, before: { x: node.x, y: node.y }, after }] : []
+    })
+    if (moved.length) pushDeletion({ topologyId: active.id, nodes: [], links: [], positions: moved, message: `Перемещено узлов: ${moved.length}` })
     updateTopology(active.id, { nodes: active.nodes.map((item) => {
       const position = positions.get(item.id)
       return position ? { ...item, x: position.x, y: position.y } : item
     }) })
-  }, [active, editMode, flowInstance, nodes, updateTopology])
+  }, [active, editMode, flowInstance, nodes, updateTopology, pushDeletion])
   const onNodesDelete = useCallback((deleted: DeviceFlowNode[]) => {
     if (!active || !editMode) return
     const ids = new Set(deleted.map((node) => node.id))
@@ -254,52 +291,53 @@ export function TopologyPage() {
     })
     setUndoNoticeVisible(true)
     updateTopology(active.id, { links: active.links.filter((link) => !ids.has(link.id)) })
-  }, [active, editMode, updateTopology])
+  }, [active, editMode, updateTopology, setUndoHistory, setUndoNoticeVisible])
   const onConnect = useCallback((connection: Connection) => {
     if (active && editMode && connection.source && connection.target) setLinkForm({ ...emptyLink, source: connection.source, target: connection.target, sourceHandle: connection.sourceHandle ?? undefined, targetHandle: connection.targetHandle ?? undefined })
-  }, [active, editMode])
+  }, [active, editMode, setLinkForm])
 
   const addNode = () => {
     if (!active) return
     const node: TopologyNode = { id: `node-${Date.now()}`, x: 180 + active.nodes.length * 35, y: 180 + active.nodes.length * 25, label: 'new-device', name: 'Новое устройство', type: 'switch', color: manufacturers[0]?.color ?? '#22c55e', manufacturerId: manufacturers[0]?.id, handles: { ...defaultHandles } }
-    updateTopology(active.id, { nodes: [...active.nodes, node] }); setDeviceFilter(''); setEditingNodeId(node.id)
+    beginNodeEdit(node, true)
   }
   const addGroup = () => {
     if (!active) return
     const group: TopologyNode = { id: `group-${Date.now()}`, x: 140, y: 160, label: 'Шкаф / группа', type: 'group', color: '#64748b', width: 480, height: 280, groupLabelPosition: 'top', handles: { top: 0, bottom: 0, left: 0, right: 0 } }
-    updateTopology(active.id, { nodes: [group, ...active.nodes] }); setDeviceFilter(''); setEditingNodeId(group.id)
+    beginNodeEdit(group, true)
   }
   const addText = () => {
     if (!active) return
     const textNode: TopologyNode = { id: `text-${Date.now()}`, x: 220, y: 220, label: 'Новый текст', text: 'Новый текст', type: 'text', color: settings.theme === 'dark' ? '#e7ecf4' : '#18202c', fontSize: 18, handles: { top: 0, bottom: 0, left: 0, right: 0 } }
-    updateTopology(active.id, { nodes: [...active.nodes, textNode] }); setDeviceFilter(''); setEditingNodeId(textNode.id)
+    beginNodeEdit(textNode, true)
   }
   const copySelected = useCallback(() => {
     if (!active) return
     const selectedIds = new Set(nodes.filter((node) => node.selected).map((node) => node.id))
     setCopiedNodes(active.nodes.filter((node) => selectedIds.has(node.id)).map((node) => ({ ...node })))
-  }, [active, nodes])
+  }, [active, nodes, setCopiedNodes])
   const pasteNodes = useCallback(() => {
     if (!active || !copiedNodes.length || !editMode) return
     const timestamp = Date.now()
     const copies = copiedNodes.map((source, index) => ({ ...source, id: `node-${timestamp}-${index}`, x: source.x + 40, y: source.y + 40, label: `${source.label} — копия`, switchId: undefined }))
     updateTopology(active.id, { nodes: [...active.nodes, ...copies] })
     setCopiedNodes(copies)
-  }, [active, copiedNodes, editMode, updateTopology])
+  }, [active, copiedNodes, editMode, updateTopology, setCopiedNodes])
   const restoreDeletion = useCallback(() => {
     const snapshot = undoHistory.at(-1)
     if (!snapshot) return
     const topology = topologies.find((item) => item.id === snapshot.topologyId)
     if (!topology) return
+    if (snapshot.positions?.some((position) => { const node = topology.nodes.find((item) => item.id === position.id); return !node || node.x !== position.after.x || node.y !== position.after.y })) { alert('Положение узлов уже изменилось. Отмена остановлена, чтобы не затереть новые изменения.'); return }
     const nodeIds = new Set(topology.nodes.map((node) => node.id))
     const linkIds = new Set(topology.links.map((link) => link.id))
     updateTopology(topology.id, {
-      nodes: [...topology.nodes, ...snapshot.nodes.filter((node) => !nodeIds.has(node.id))],
+      nodes: [...topology.nodes.map((node) => { const position = snapshot.positions?.find((item) => item.id === node.id); return position ? { ...node, ...position.before } : node }), ...snapshot.nodes.filter((node) => !nodeIds.has(node.id))],
       links: [...topology.links, ...snapshot.links.filter((link) => !linkIds.has(link.id))],
     })
     setUndoHistory((history) => history.slice(0, -1))
     setUndoNoticeVisible(false)
-  }, [topologies, undoHistory, updateTopology])
+  }, [topologies, undoHistory, updateTopology, setUndoHistory, setUndoNoticeVisible])
   useEffect(() => {
     if (!undoNoticeVisible) return
     const timer = window.setTimeout(() => setUndoNoticeVisible(false), 8000)
@@ -350,7 +388,7 @@ export function TopologyPage() {
     const link: TopologyLink = { ...linkForm, id: linkForm.id ?? `link-${Date.now()}`, label: linkForm.label || undefined }
     updateTopology(active.id, { links: linkForm.id ? active.links.map((item) => item.id === link.id ? link : item) : [...active.links, link] }); setLinkForm(null)
   }
-  const currentNode = active?.nodes.find((node) => node.id === editingNodeId)
+  const currentNode = nodeDraft
   const viewingNode = active?.nodes.find((node) => node.id === viewingNodeId)
   const viewingDevice = switches.find((device) => device.id === viewingNode?.switchId)
   const openSshForNode = (node: TopologyNode) => {
@@ -360,8 +398,9 @@ export function TopologyPage() {
   const createTopology = () => { const name = prompt('Название новой схемы'); if (name?.trim()) navigate(`/topology/${addTopology(name.trim())}`) }
   const saveStatusLabel = saveState.status === 'saving' ? 'Сохранение…' : saveState.status === 'dirty' ? 'Не сохранено' : saveState.status === 'error' ? 'Ошибка сохранения' : saveState.status === 'conflict' ? 'Конфликт изменений' : 'Сохранено'
   const clearTrace = () => {
-    if (!highlightedDevice && !highlightedPort) return
+    if (!highlightedDevice && !highlightedPort && !highlightedNode) return
     const next = new URLSearchParams(searchParams)
+    next.delete('node')
     next.delete('device')
     next.delete('port')
     setSearchParams(next, { replace: true })
@@ -386,12 +425,12 @@ export function TopologyPage() {
 
   return <div className="topology-page">
     <header className="page-header compact"><div><p className="eyebrow">Редактор сети</p><h1>Схемы</h1>{highlightedPort && <p className="trace-hint"><Cable size={14} /> Трассировка от порта {highlightedPort}</p>}</div><div className="toolbar"><div className="mode-switch"><button aria-pressed={!editMode} className={!editMode ? 'active' : ''} onClick={() => setEditMode(false)}><Eye size={16} /> Просмотр</button><button aria-pressed={editMode} className={editMode ? 'active' : ''} onClick={() => setEditMode(true)}><Edit3 size={16} /> Редактирование</button></div>{editMode && <><button className="button" onClick={copySelected} disabled={!nodes.some((node) => node.selected)}><Copy size={16} /> Копировать</button><button className="button" onClick={pasteNodes} disabled={!copiedNodes.length}><Box size={16} /> Вставить</button><button className="button" onClick={() => setLinkForm({ ...emptyLink })}><Cable size={16} /> Связь</button><button className="button" onClick={addGroup}><Group size={16} /> Группа</button><button className="button" onClick={addText}><Type size={16} /> Текст</button><button className="button primary" onClick={addNode}><Plus size={17} /> Узел</button></>}</div></header>
-    <div className="topology-workspace"><aside className="topology-list"><div className="section-title"><span>Все схемы</span><button className="icon-button" onClick={createTopology} aria-label="Создать схему"><Plus size={17} /></button></div><div className="topology-search"><Search size={14} /><input aria-label="Поиск схем" value={topologyQuery} onChange={(event) => setTopologyQuery(event.target.value)} placeholder="Поиск схем..." /></div><div className="topology-items">{filteredTopologies.map((item) => <button key={item.id} className={`topology-item ${item.id === active?.id ? 'active' : ''}`} onClick={() => navigate(`/topology/${item.id}`)}><span><strong>{item.name}</strong><small>{item.nodes.length} узлов · {item.links.length} связей</small></span></button>)}</div>{topologyQuery && !filteredTopologies.length && <p className="list-empty">Схемы не найдены</p>}{active && <div className="topology-manage"><button onClick={() => { const name = prompt('Новое название', active.name); if (name?.trim()) updateTopology(active.id, { name: name.trim() }) }}><Edit3 size={15} /> Переименовать</button><button className="danger-text" onClick={() => { if (confirm(`Удалить схему «${active.name}»?`)) { deleteTopology(active.id); navigate('/topology') } }}><Trash2 size={15} /> Удалить</button></div>}</aside>
-      <section className="canvas-panel">{active ? <><div className="canvas-title"><div><strong>{active.name}</strong><span>{active.description || 'Дважды нажмите узел или связь для настройки'}</span></div><span className={`autosave save-${saveState.status}`} role="status" title={saveState.message}><Save size={14} /> {saveStatusLabel}</span></div><div className="flow-wrap"><ReactFlow<DeviceFlowNode, LinkFlowEdge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={setFlowInstance} connectionMode={ConnectionMode.Loose} snapToGrid snapGrid={[20, 20]} multiSelectionKeyCode={['Control', 'Meta']} selectionKeyCode={null} selectionOnDrag={editMode} selectionMode={SelectionMode.Partial} panOnDrag={editMode ? [1, 2] : true} nodesDraggable={editMode} nodesConnectable={editMode} elementsSelectable onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeDragStop={onNodeDragStop} onNodesDelete={onNodesDelete} onEdgesDelete={onEdgesDelete} deleteKeyCode={null} onConnect={onConnect} onNodeDoubleClick={(_, node) => { if (!editMode) { clearTrace(); setEditMode(true); setViewingNodeId(null) } setDeviceFilter(''); setEditingNodeId(node.id) }} onEdgeDoubleClick={(_, edge) => { const link = active.links.find((item) => item.id === edge.id); if (link) { if (!editMode) { clearTrace(); setEditMode(true); setViewingNodeId(null) } setLinkForm({ ...link }) } }} onNodeClick={(event, node) => { if (!editMode) selectViewNode(node.id, event.ctrlKey || event.metaKey) }} onPaneClick={() => { if (!editMode) clearViewSelection() }} zoomOnDoubleClick={false} colorMode={settings.theme}><Background gap={20} size={1} /><Controls /><MiniMap pannable zoomable nodeColor={(node) => String(node.data?.color ?? '#64748b')} /></ReactFlow></div></> : <div className="empty-state"><Network size={42} /><h2>Нет схем</h2><button className="button primary" onClick={createTopology}>Создать схему</button></div>}</section>
+    <div className="topology-workspace"><aside className="topology-list"><div className="section-title"><span>Все схемы</span>{editMode && <button className="icon-button" onClick={createTopology} aria-label="Создать схему"><Plus size={17} /></button>}</div><div className="topology-search"><Search size={14} /><input aria-label="Поиск схем" value={topologyQuery} onChange={(event) => setTopologyQuery(event.target.value)} placeholder="Поиск схем..." /></div><div className="topology-items">{filteredTopologies.map((item) => <button key={item.id} className={`topology-item ${item.id === active?.id ? 'active' : ''}`} onClick={() => navigate(`/topology/${item.id}`)}><span><strong>{item.name}</strong><small>{item.nodes.length} узлов · {item.links.length} связей</small></span></button>)}</div>{topologyQuery && !filteredTopologies.length && <p className="list-empty">Схемы не найдены</p>}{active && editMode && <div className="topology-manage"><button onClick={() => { const name = prompt('Новое название', active.name); if (name?.trim()) updateTopology(active.id, { name: name.trim() }) }}><Edit3 size={15} /> Переименовать</button><SafeAction className="danger-text" title={`Удалить схему «${active.name}»`} details={`Удалится узлов: ${active.nodes.length}, связей: ${active.links.length}. Оборудование в шкафах останется; ссылки устройств на эту схему будут очищены.`} onConfirm={() => { deleteTopology(active.id); navigate('/topology') }}><Trash2 size={15} /> Удалить</SafeAction></div>}</aside>
+      <section className="canvas-panel">{active ? <><div className="canvas-title"><div><strong>{active.name}</strong><span>{active.description || (editMode ? 'Двойной клик — свойства. Перемещения сохраняются автоматически.' : 'Нажмите узел для просмотра. Для изменений включите редактирование.')}</span></div><span className={`autosave save-${saveState.status}`} role="status" title={saveState.message}><Save size={14} /> {saveStatusLabel}</span></div><div className="flow-wrap"><ReactFlow<DeviceFlowNode, LinkFlowEdge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={setFlowInstance} connectionMode={ConnectionMode.Loose} snapToGrid snapGrid={[20, 20]} multiSelectionKeyCode={['Control', 'Meta']} selectionKeyCode={null} selectionOnDrag={editMode} selectionMode={SelectionMode.Partial} panOnDrag={editMode ? [1, 2] : true} nodesDraggable={editMode} nodesConnectable={editMode} elementsSelectable onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeDragStop={onNodeDragStop} onNodesDelete={onNodesDelete} onEdgesDelete={onEdgesDelete} deleteKeyCode={null} onConnect={onConnect} onNodeDoubleClick={(_, node) => { if (!editMode) return; const source = active.nodes.find((item) => item.id === node.id); if (source) beginNodeEdit(source) }} onEdgeDoubleClick={(_, edge) => { if (!editMode) return; const link = active.links.find((item) => item.id === edge.id); if (link) setLinkForm({ ...link }) }} onNodeClick={(event, node) => { if (!editMode) selectViewNode(node.id, event.ctrlKey || event.metaKey) }} onPaneClick={() => { if (!editMode) clearViewSelection() }} zoomOnDoubleClick={false} colorMode={settings.theme}><Background gap={20} size={1} /><Controls /><MiniMap pannable zoomable nodeColor={(node) => String(node.data?.color ?? '#64748b')} /></ReactFlow></div></> : <div className="empty-state"><Network size={42} /><h2>Нет схем</h2><button className="button primary" onClick={createTopology}>Создать схему</button></div>}</section>
     </div>
-    {currentNode && currentNode.type !== 'text' && active && <Modal title="Настройка узла" onClose={() => setEditingNodeId(null)}><form className="form-grid" onSubmit={(event) => event.preventDefault()}>{currentNode.type === 'group' ? <label className="full">Наименование<input value={currentNode.label} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, label: event.target.value } : node) })} /></label> : <><label className="full">Наименование<input value={currentNode.name ?? ''} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, name: event.target.value } : node) })} /></label><label className="full">Имя хоста<input value={currentNode.label} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, label: event.target.value } : node) })} /></label></>}{currentNode.type !== 'group' && <label>Тип<select value={currentNode.type} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, type: event.target.value as DeviceType } : node) })}>{Object.entries(deviceLabels).filter(([value]) => value !== 'group').map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}<label>Цвет<input type="color" value={currentNode.color} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, color: event.target.value } : node) })} /></label>{currentNode.type !== 'group' && <label className="full">Связанное устройство<div className="linked-device-picker"><input aria-label="Фильтр связанных устройств" placeholder="Фильтр: IP" value={deviceFilter} onChange={(event) => setDeviceFilter(event.target.value)} /><select value={currentNode.switchId ?? ''} onChange={(event) => { const device = switches.find((item) => item.id === event.target.value); updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, switchId: device?.id, ip: device?.ip || node.ip, label: device?.hostname || node.label, manufacturerId: device?.manufacturerId || node.manufacturerId, color: manufacturers.find((item) => item.id === device?.manufacturerId)?.color ?? node.color } : node) }) }}><option value="">Не связано</option>{deviceOptions.map((device) => <option key={device.id} value={device.id}>{device.hostname}{device.ip ? ` · ${device.ip}` : ''}</option>)}</select></div></label>}{currentNode.type !== 'group' && <label>Производитель<select value={currentNode.manufacturerId ?? ''} onChange={(event) => { const vendor = manufacturers.find((item) => item.id === event.target.value); updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, manufacturerId: vendor?.id, color: vendor?.color ?? node.color } : node) }) }}><option value="">Не выбран</option>{manufacturers.filter((item) => item.deviceTypes.includes(currentNode.type)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}{currentNode.type !== 'group' && <label className="full">IP-адрес<input value={currentNode.ip ?? ''} onChange={(event) => { const ip = event.target.value; const device = linkedDeviceForIp(switches, ip, currentNode.switchId); updateTopology(active.id, { nodes: active.nodes.map((node) => { if (node.id !== currentNode.id) return node; if (!device) return { ...node, ip, switchId: undefined }; if (device.id === node.switchId) return { ...node, ip }; return { ...node, ip, switchId: device.id, label: device.hostname || node.label, manufacturerId: device.manufacturerId || node.manufacturerId, color: manufacturers.find((item) => item.id === device.manufacturerId)?.color ?? node.color } }) }) }} /></label>}{currentNode.type !== 'group' && <label className="full">ICMP-проверка<select value={currentNode.ping === undefined ? 'inherit' : currentNode.ping ? 'on' : 'off'} onChange={(event) => { const value = event.target.value; updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, ping: value === 'inherit' ? undefined : value === 'on' } : node) }) }}><option value="inherit">Как в настройках</option><option value="on">Включена</option><option value="off">Отключена</option></select></label>}{currentNode.type === 'group' && <><label>Положение названия<select value={currentNode.groupLabelPosition ?? 'top'} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, groupLabelPosition: event.target.value as 'top' | 'center' } : node) })}><option value="top">Сверху по центру</option><option value="center">По центру</option></select></label><p className="group-resize-help full">Размер группы изменяется маркерами по краям прямо на холсте.</p></>}{currentNode.type !== 'group' && <div className="handle-settings full"><strong>Точки подключения</strong><span>Укажите количество точек на каждой стороне узла</span><div>{(['top', 'bottom', 'left', 'right'] as HandleSide[]).map((side) => <label key={side}>{side === 'top' ? 'Сверху' : side === 'bottom' ? 'Снизу' : side === 'left' ? 'Слева' : 'Справа'}<input type="number" min="0" max="8" value={(currentNode.handles ?? defaultHandles)[side]} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, handles: { ...(node.handles ?? defaultHandles), [side]: Math.max(0, Math.min(8, Number(event.target.value))) } } : node) })} /></label>)}</div></div>}<div className="modal-actions full"><button type="button" className="button danger-button" onClick={() => { deleteNodeWithUndo(currentNode.id); setEditingNodeId(null) }}><Trash2 size={16} /> Удалить</button><button className="button primary" type="button" onClick={() => setEditingNodeId(null)}>Готово</button></div></form></Modal>}
-    {currentNode?.type === 'text' && active && <Modal title="Настройка текста" onClose={() => setEditingNodeId(null)}><form className="form-grid" onSubmit={(event) => event.preventDefault()}><label className="full">Текст<textarea autoFocus value={currentNode.label} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, label: event.target.value, text: event.target.value } : node) })} /></label><label>Цвет<input type="color" value={currentNode.color} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, color: event.target.value } : node) })} /></label><label>Размер шрифта<input type="number" min={12} max={96} value={currentNode.fontSize ?? 18} onChange={(event) => updateTopology(active.id, { nodes: active.nodes.map((node) => node.id === currentNode.id ? { ...node, fontSize: Number(event.target.value) } : node) })} /></label><div className="modal-actions full"><button type="button" className="button" onClick={() => setEditingNodeId(null)}>Закрыть</button></div></form></Modal>}
-     {viewingNode && <aside className="node-inspector"><button className="icon-button node-inspector-close" onClick={clearViewSelection} aria-label="Закрыть сведения об узле"><X size={16} /></button><div className="node-view-summary"><span className="flow-icon" style={{ '--node-color': viewingNode.color } as React.CSSProperties}><NodeTypeIcon type={viewingNode.type} size={22} /></span><div><strong>{viewingNode.name || viewingNode.label}</strong>{viewingNode.name && <span>{viewingNode.label}</span>}<span>{viewingNode.ip || 'IP-адрес не указан'}</span></div></div><small>{deviceLabels[viewingNode.type]}</small>{viewingNode.ip?.trim() || viewingDevice?.accessMethods?.includes('ssh') ? <button className="button" onClick={() => openSshForNode(viewingNode)}>Подключиться по SSH</button> : <button className="button" disabled>SSH недоступен — укажите IP или свяжите устройство</button>}<button className="button" disabled>Открыть веб-интерфейс — в разработке</button></aside>}
+    {currentNode && currentNode.type !== 'text' && active && <Modal title="Настройка узла" onClose={closeNodeEditor}><form className="form-grid" onSubmit={saveNodeDraft}>{currentNode.type === 'group' ? <label className="full">Наименование<input value={currentNode.label} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, label: event.target.value } : node) })} /></label> : <><label className="full">Наименование<input value={currentNode.name ?? ''} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, name: event.target.value } : node) })} /></label><label className="full">Имя хоста<input value={currentNode.label} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, label: event.target.value } : node) })} /></label></>}{currentNode.type !== 'group' && <label>Тип<select value={currentNode.type} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, type: event.target.value as DeviceType } : node) })}>{Object.entries(deviceLabels).filter(([value]) => value !== 'group').map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}<label>Цвет<input type="color" value={currentNode.color} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, color: event.target.value } : node) })} /></label>{currentNode.type !== 'group' && <label className="full">Связанное устройство<div className="linked-device-picker"><input aria-label="Фильтр связанных устройств" placeholder="Фильтр: IP" value={deviceFilter} onChange={(event) => setDeviceFilter(event.target.value)} /><select value={currentNode.switchId ?? ''} onChange={(event) => { const device = switches.find((item) => item.id === event.target.value); updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, switchId: device?.id, ip: device?.ip || node.ip, label: device?.hostname || node.label, manufacturerId: device?.manufacturerId || node.manufacturerId, color: manufacturers.find((item) => item.id === device?.manufacturerId)?.color ?? node.color } : node) }) }}><option value="">Не связано</option>{deviceOptions.map((device) => <option key={device.id} value={device.id}>{device.hostname}{device.ip ? ` · ${device.ip}` : ''}</option>)}</select></div></label>}{currentNode.type !== 'group' && <label>Производитель<select value={currentNode.manufacturerId ?? ''} onChange={(event) => { const vendor = manufacturers.find((item) => item.id === event.target.value); updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, manufacturerId: vendor?.id, color: vendor?.color ?? node.color } : node) }) }}><option value="">Не выбран</option>{manufacturers.filter((item) => item.deviceTypes.includes(currentNode.type)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}{currentNode.type !== 'group' && <label className="full">IP-адрес<input value={currentNode.ip ?? ''} onChange={(event) => { const ip = event.target.value; const device = linkedDeviceForIp(switches, ip, currentNode.switchId); updateNodeDraft(active.id, { nodes: draftNodes.map((node) => { if (node.id !== currentNode.id) return node; if (!device) return { ...node, ip, switchId: undefined }; if (device.id === node.switchId) return { ...node, ip }; return { ...node, ip, switchId: device.id, label: device.hostname || node.label, manufacturerId: device.manufacturerId || node.manufacturerId, color: manufacturers.find((item) => item.id === device.manufacturerId)?.color ?? node.color } }) }) }} /></label>}{currentNode.type !== 'group' && <label className="full">ICMP-проверка<select value={currentNode.ping === undefined ? 'inherit' : currentNode.ping ? 'on' : 'off'} onChange={(event) => { const value = event.target.value; updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, ping: value === 'inherit' ? undefined : value === 'on' } : node) }) }}><option value="inherit">Как в настройках</option><option value="on">Включена</option><option value="off">Отключена</option></select></label>}{currentNode.type === 'group' && <><label>Положение названия<select value={currentNode.groupLabelPosition ?? 'top'} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, groupLabelPosition: event.target.value as 'top' | 'center' } : node) })}><option value="top">Сверху по центру</option><option value="center">По центру</option></select></label><p className="group-resize-help full">Размер группы изменяется маркерами по краям прямо на холсте.</p></>}{currentNode.type !== 'group' && <div className="handle-settings full"><strong>Точки подключения</strong><span>Укажите количество точек на каждой стороне узла</span><div>{(['top', 'bottom', 'left', 'right'] as HandleSide[]).map((side) => <label key={side}>{side === 'top' ? 'Сверху' : side === 'bottom' ? 'Снизу' : side === 'left' ? 'Слева' : 'Справа'}<input type="number" min="0" max="8" value={(currentNode.handles ?? defaultHandles)[side]} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, handles: { ...(node.handles ?? defaultHandles), [side]: Math.max(0, Math.min(8, Number(event.target.value))) } } : node) })} /></label>)}</div></div>}{nodeError && <p className="field-error full" role="alert">{nodeError}</p>}<div className="modal-actions full">{!nodeIsNew && <button type="button" className="button danger-button" onClick={() => { deleteNodeWithUndo(currentNode.id); closeNodeEditor() }}><Trash2 size={16} /> Удалить</button>}<button className="button" type="button" onClick={closeNodeEditor}>Отмена</button><button className="button primary" type="submit">Сохранить</button></div></form></Modal>}
+    {currentNode?.type === 'text' && active && <Modal title="Настройка текста" onClose={closeNodeEditor}><form className="form-grid" onSubmit={saveNodeDraft}><label className="full">Текст<textarea autoFocus value={currentNode.label} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, label: event.target.value, text: event.target.value } : node) })} /></label><label>Цвет<input type="color" value={currentNode.color} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, color: event.target.value } : node) })} /></label><label>Размер шрифта<input type="number" min={12} max={96} value={currentNode.fontSize ?? 18} onChange={(event) => updateNodeDraft(active.id, { nodes: draftNodes.map((node) => node.id === currentNode.id ? { ...node, fontSize: Number(event.target.value) } : node) })} /></label>{nodeError && <p className="field-error full" role="alert">{nodeError}</p>}<div className="modal-actions full"><button type="button" className="button" onClick={closeNodeEditor}>Отмена</button><button className="button primary" type="submit">Сохранить</button></div></form></Modal>}
+     {viewingNode && <aside className="node-inspector"><button className="icon-button node-inspector-close" onClick={clearViewSelection} aria-label="Закрыть сведения об узле"><X size={16} /></button><div className="node-view-summary"><span className="flow-icon" style={{ '--node-color': viewingNode.color } as React.CSSProperties}><NodeTypeIcon type={viewingNode.type} size={22} /></span><div><strong>{viewingNode.name || viewingNode.label}</strong>{viewingNode.name && <span>{viewingNode.label}</span>}<span>{viewingNode.ip || 'IP-адрес не указан'}</span></div></div><small>{deviceLabels[viewingNode.type]}</small>{pingStates[viewingNode.id] && <div className="node-ping-details"><strong>{pingTitle(pingStates[viewingNode.id])}</strong><span>Нет ответа на ICMP не всегда означает, что устройство выключено.</span><button className="button" disabled={pingChecking} onClick={refreshPing}>{pingChecking ? 'Проверка…' : 'Проверить сейчас'}</button></div>}{viewingNode.ip?.trim() || viewingDevice?.accessMethods?.includes('ssh') ? <button className="button" onClick={() => openSshForNode(viewingNode)}>Подключиться по SSH</button> : <button className="button" disabled>SSH недоступен — укажите IP или свяжите устройство</button>}<button className="button" disabled>Открыть веб-интерфейс — в разработке</button></aside>}
     {undoNoticeVisible && undoHistory.length > 0 && <div className="undo-toast" role="status"><span>{undoHistory.at(-1)?.message}</span><button className="button" onClick={restoreDeletion}>Отменить (Ctrl+Z)</button><button className="icon-button" onClick={() => setUndoNoticeVisible(false)} aria-label="Закрыть уведомление"><X size={15} /></button></div>}
     {linkForm && active && <Modal title={linkForm.id ? 'Редактировать связь' : 'Новая связь'} onClose={() => setLinkForm(null)}><form className="form-grid" onSubmit={saveLink}><label>От устройства<select required value={linkForm.source} onChange={(event) => setLinkForm({ ...linkForm, source: event.target.value })}><option value="">Выберите</option>{active.nodes.map((node) => <option key={node.id} value={node.id}>{node.label}</option>)}</select></label><label>Порт источника<input required value={linkForm.sourcePort} onChange={(event) => setLinkForm({ ...linkForm, sourcePort: event.target.value })} placeholder="1/0/1" /></label><label>К устройству<select required value={linkForm.target} onChange={(event) => setLinkForm({ ...linkForm, target: event.target.value })}><option value="">Выберите</option>{active.nodes.map((node) => <option key={node.id} value={node.id}>{node.label}</option>)}</select></label><label>Порт назначения<input required value={linkForm.targetPort} onChange={(event) => setLinkForm({ ...linkForm, targetPort: event.target.value })} placeholder="1/0/48" /></label><label>Тип кабеля<select value={linkForm.cableType} onChange={(event) => setLinkForm({ ...linkForm, cableType: event.target.value as CableType })}>{Object.entries(cableLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="full">Комментарий<input value={linkForm.label ?? ''} onChange={(event) => setLinkForm({ ...linkForm, label: event.target.value })} placeholder="Магистраль, патч-панель..." /></label><label className="checkbox full"><input type="checkbox" checked={linkForm.showLabel !== false} onChange={(event) => setLinkForm({ ...linkForm, showLabel: event.target.checked })} /> Показывать на схеме</label><div className="modal-actions full">{linkForm.id && <button type="button" className="button danger-button" onClick={() => { deleteLinkWithUndo(linkForm.id); setLinkForm(null) }}><Trash2 size={16} /> Удалить</button>}<button type="button" className="button" onClick={() => setLinkForm(null)}>Отмена</button><button className="button primary">Сохранить</button></div></form></Modal>}
   </div>

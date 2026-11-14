@@ -1,5 +1,6 @@
 import { Copy, FileCode2, Pencil, Plus, Search, Star, Trash2, Check, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { SafeAction } from '../components/SafeAction'
 import { Modal } from '../components/Layout'
 import { ConfigHighlight } from '../components/ConfigHighlight'
 import { EditableConfig } from '../components/EditableConfig'
@@ -105,7 +106,7 @@ function ViewCard({ template, highlight, onEdit, onToggleFavorite, editing, onEd
       </div>
       <div className="tpl-view-actions">
         <button className="button" onClick={onEdit} disabled={editing}><Pencil size={16} /> Изменить</button>
-        <button className="button danger-button" onClick={() => confirm('Удалить шаблон?') && store.deleteConfigTemplate(template.id)} disabled={editing}><Trash2 size={16} /> Удалить</button>
+        <SafeAction title={`Удалить шаблон «${template.title}»`} details="Будет удалён этот шаблон и его текст. Остальные шаблоны останутся." onConfirm={() => store.deleteConfigTemplate(template.id)} disabled={editing}><Trash2 size={16} /> Удалить</SafeAction>
       </div>
     </div>
 

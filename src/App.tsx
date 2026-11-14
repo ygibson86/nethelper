@@ -8,6 +8,7 @@ import { CorePage } from './pages/CorePage'
 import { RacksPage } from './pages/RacksPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
+import { DataQualityPage } from './pages/DataQualityPage'
 import { TopologyPage } from './pages/TopologyPage'
 
 const SshTerminalPage = lazy(() => import('./pages/SshTerminalPage').then((module) => ({ default: module.SshTerminalPage })))
@@ -22,6 +23,7 @@ function App() {
         <Route path="topology/:id" element={<TopologyPage />} />
         <Route path="core" element={<CorePage />} />
         <Route path="templates" element={<TemplatesPage />} />
+        <Route path="quality" element={<DataQualityPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="terminal" element={<Suspense fallback={<div className="login-loading" role="status">Загрузка терминала…</div>}><SshTerminalPage /></Suspense>} />
         <Route path="terminal/:deviceId" element={<Suspense fallback={<div className="login-loading" role="status">Загрузка терминала…</div>}><SshTerminalPage /></Suspense>} />

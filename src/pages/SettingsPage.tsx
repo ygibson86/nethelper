@@ -1,7 +1,11 @@
-import { Download, Moon, Plus, RotateCcw, Sun, Trash2, Upload } from 'lucide-react'
+import { Download, Edit3, Moon, Plus, RotateCcw, Sun, Trash2, Upload } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNetHelper } from '../store'
-import type { AppData, DeviceType } from '../types'
+import type { AppData, DeviceType, Manufacturer } from '../types'
+import { Modal } from '../components/Layout'
+import { SafeAction } from '../components/SafeAction'
+import { ManufacturerEditor } from '../components/ManufacturerEditor'
+import { downloadBackup } from '../backup'
 import { parseAppData } from '../dataValidation'
 
 const vendorDeviceTypes: { value: DeviceType; label: string }[] = [
@@ -16,32 +20,29 @@ export function SettingsPage() {
   const store = useNetHelper()
   const fileRef = useRef<HTMLInputElement>(null)
   const [vendor, setVendor] = useState(defaultVendor)
+  const [editingVendor, setEditingVendor] = useState<Manufacturer | null>(null)
+  const [importPreview, setImportPreview] = useState<AppData | null>(null)
+  const [importError, setImportError] = useState('')
 
   const toggleVendorType = (types: DeviceType[], type: DeviceType, checked: boolean) => checked ? [...new Set([...types, type])] : types.filter((item) => item !== type)
 
-  const exportData = () => {
-    const data: AppData = { version: store.version, manufacturers: store.manufacturers, switches: store.switches, racks: store.racks, groups: store.groups, topologies: store.topologies, corePanels: store.corePanels, settings: store.settings, configTemplates: store.configTemplates }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `nethelper-backup-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
+  const exportData = () => downloadBackup(store)
   const importData = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    setImportError('')
+    if (file.size > 2 * 1024 * 1024) { setImportError('Файл больше 2 МБ — превышен лимит серверного сохранения.'); event.target.value = ''; return }
     const reader = new FileReader()
     reader.onload = () => {
       try {
         const parsed = parseAppData(JSON.parse(String(reader.result)))
         if (!parsed.data) throw new Error(parsed.errors.join('\n'))
-        if (confirm('Импорт заменит все текущие данные. Продолжить?')) store.replaceData(parsed.data)
-      } catch {
-        alert('Не удалось импортировать файл: формат резервной копии некорректен.')
+        setImportPreview(parsed.data)
+      } catch (reason) {
+        setImportError(reason instanceof Error ? reason.message : 'Некорректный формат резервной копии.')
       }
     }
+    reader.onerror = () => setImportError('Не удалось прочитать файл.')
     reader.readAsText(file)
     event.target.value = ''
   }
@@ -65,12 +66,11 @@ export function SettingsPage() {
         <div className="settings-card-title"><div><h2>Производители</h2><p>Цвета и короткие обозначения оборудования</p></div></div>
         <div className="vendor-list">{store.manufacturers.map((item) => {
           const inUse = store.switches.some((device) => device.manufacturerId === item.id) || store.topologies.some((topology) => topology.nodes.some((node) => node.manufacturerId === item.id))
-          return <div className="vendor-row" key={item.id}>
-             <input aria-label={`Цвет производителя ${item.name}`} type="color" value={item.color} onChange={(event) => store.updateManufacturer(item.id, { color: event.target.value })} />
-             <input aria-label={`Сокращение производителя ${item.name}`} value={item.abbreviation} maxLength={3} onChange={(event) => store.updateManufacturer(item.id, { abbreviation: event.target.value.toUpperCase() })} />
-             <input aria-label={`Название производителя ${item.name}`} value={item.name} onChange={(event) => store.updateManufacturer(item.id, { name: event.target.value })} title={item.deviceTypes.map((type) => vendorDeviceTypes.find((entry) => entry.value === type)?.label).filter(Boolean).join(', ')} />
-             <button className="icon-button danger" disabled={inUse} title={inUse ? 'Производитель используется' : 'Удалить'} onClick={() => store.deleteManufacturer(item.id)}><Trash2 size={16} /></button>
-             <div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={item.deviceTypes.includes(type.value)} onChange={(event) => store.updateManufacturer(item.id, { deviceTypes: toggleVendorType(item.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div>
+           return <div className="vendor-row vendor-summary-row" key={item.id}>
+             <span className="vendor-color-preview" style={{ background: item.color }} />
+             <strong>{item.abbreviation}</strong><span>{item.name}</span>
+             <button className="icon-button" aria-label={`Редактировать ${item.name}`} onClick={() => setEditingVendor(item)}><Edit3 size={16} /></button>
+             <SafeAction className="icon-button danger" title={`Удалить производителя ${item.name}`} details="Производитель не используется оборудованием или узлами." disabled={inUse} onConfirm={() => store.deleteManufacturer(item.id)}><Trash2 size={16} /></SafeAction>
            </div>
         })}</div>
         <form className="vendor-add" onSubmit={addVendor}><input aria-label="Цвет нового производителя" type="color" value={vendor.color} onChange={(event) => setVendor({ ...vendor, color: event.target.value })} /><input aria-label="Сокращение нового производителя" required maxLength={3} placeholder="Код" value={vendor.abbreviation} onChange={(event) => setVendor({ ...vendor, abbreviation: event.target.value })} /><input aria-label="Название нового производителя" required placeholder="Название" value={vendor.name} onChange={(event) => setVendor({ ...vendor, name: event.target.value })} /><button className="button primary"><Plus size={16} /> Добавить</button><div className="vendor-types">{vendorDeviceTypes.map((type) => <label key={type.value}><input type="checkbox" checked={vendor.deviceTypes.includes(type.value)} onChange={(event) => setVendor({ ...vendor, deviceTypes: toggleVendorType(vendor.deviceTypes, type.value, event.target.checked) })} /> {type.label}</label>)}</div></form>
@@ -78,12 +78,15 @@ export function SettingsPage() {
       <section className="settings-card backup-card">
         <div className="settings-card-title"><div><h2>Резервная копия</h2><p>Все данные сохраняются в одном JSON-файле</p></div></div>
         <div className="backup-actions"><button className="button primary" onClick={exportData}><Download size={18} /> Экспортировать данные</button><button className="button" onClick={() => fileRef.current?.click()}><Upload size={18} /> Импортировать данные</button><input ref={fileRef} hidden type="file" accept="application/json,.json" onChange={importData} /></div>
+        {importError && <p className="field-error" role="alert">{importError}</p>}
         <div className="backup-stats"><span><strong>{store.racks.length}</strong> шкафов</span><span><strong>{store.switches.length}</strong> устройств</span><span><strong>{store.topologies.length}</strong> схем</span><span><strong>{store.corePanels.reduce((sum, panel) => sum + panel.ports.length, 0)}</strong> портов</span></div>
       </section>
       <section className="settings-card danger-zone">
-        <div><h2>Сброс данных</h2><p>Вернуть исходные демонстрационные данные. Отменить это действие нельзя.</p></div><button className="button danger-button" onClick={() => confirm('Сбросить все данные NetHelper?') && store.resetData()}><RotateCcw size={17} /> Сбросить</button>
+        <div><h2>Сброс данных</h2><p>Заменить рабочую инфраструктуру демонстрационными данными. Будет скачан бэкап.</p></div><SafeAction title="Сбросить все данные NetHelper" confirmWord="СБРОСИТЬ" backup details={`Будут заменены все данные: ${store.racks.length} шкафов, ${store.switches.length} устройств, ${store.topologies.length} схем, ${store.configTemplates.length} шаблонов. Изменение будет сохранено на сервере для всех пользователей.`} onConfirm={() => store.resetData()}><RotateCcw size={17} /> Сбросить</SafeAction>
       </section>
     </div>
+    {editingVendor && <ManufacturerEditor manufacturer={editingVendor} onClose={() => setEditingVendor(null)} />}
+    {importPreview && <Modal title="Предпросмотр импорта" onClose={() => setImportPreview(null)}><div className="safety-form"><p>Файл прошёл проверку формата. Импорт заменит общие данные на сервере, а не добавит записи.</p><div className="backup-stats"><span>Шкафов: {store.racks.length} → {importPreview.racks.length}</span><span>Устройств: {store.switches.length} → {importPreview.switches.length}</span><span>Схем: {store.topologies.length} → {importPreview.topologies.length}</span><span>Шаблонов: {store.configTemplates.length} → {importPreview.configTemplates.length}</span></div><SafeAction title="Импортировать данные" confirmWord="ИМПОРТ" backup details="Все текущие данные будут заменены данными из выбранного файла." onConfirm={() => { store.replaceData(importPreview); setImportPreview(null) }}><Upload size={16} /> Заменить данные</SafeAction></div></Modal>}
     <p className="app-version">NetHelper {appVersion}</p>
   </>
 }

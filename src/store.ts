@@ -178,7 +178,15 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
   ...initialData,
   addRack: (name) => set((state) => ({ racks: [...state.racks, { id: uid('rack'), name, location: '', group: '', switchIds: [] }] })),
   updateRack: (id, patch) => set((state) => ({ racks: state.racks.map((rack) => rack.id === id ? { ...rack, ...patch } : rack) })),
-  deleteRack: (id) => set((state) => ({ racks: state.racks.filter((rack) => rack.id !== id), switches: state.switches.filter((item) => item.rackId !== id) })),
+  deleteRack: (id) => set((state) => {
+    const removedIds = new Set(state.switches.filter((item) => item.rackId === id).map((item) => item.id))
+    return {
+      racks: state.racks.filter((rack) => rack.id !== id).map((rack) => ({ ...rack, switchIds: rack.switchIds.filter((switchId) => !removedIds.has(switchId)) })),
+      switches: state.switches.filter((item) => !removedIds.has(item.id)),
+      corePanels: state.corePanels.filter((panel) => !removedIds.has(panel.switchId)),
+      topologies: state.topologies.map((topology) => ({ ...topology, nodes: topology.nodes.map((node) => node.switchId && removedIds.has(node.switchId) ? { ...node, switchId: undefined } : node) })),
+    }
+  }),
   addGroup: (name) => set((state) => ({ groups: [...new Set([...(state.groups ?? []), name.trim()])].filter(Boolean) })),
   renameGroup: (oldName, newName) => set((state) => ({
     groups: [...new Set((state.groups ?? []).map((group) => group === oldName ? newName.trim() : group))].filter(Boolean),

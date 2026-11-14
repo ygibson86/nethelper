@@ -2,36 +2,35 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { pingHosts } from './api'
 import type { TopologyNode } from './types'
 
-export type PingStatus = 'pending' | 'up' | 'down'
-
+export type PingStatus = 'pending' | 'up' | 'down' | 'stale'
 export interface NodePingState {
   status: PingStatus
   rtt?: number
   checkedAt: number
+  host?: string
+  lastStatus?: 'up' | 'down'
 }
-
-const POLL_INTERVAL_MS = 30_000
-const EMPTY_STATES: Record<string, NodePingState> = {}
+export const POLL_INTERVAL_MS = 30_000
+export const STALE_AFTER_MS = 75_000
 const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/
 const ipv6Pattern = /^[0-9a-f:]+$/i
-
 export function isIpAddress(value: string) {
   const text = value.trim()
   if (ipv4Pattern.test(text)) return true
   return text.includes(':') && ipv6Pattern.test(text) && text.split(':').length >= 3
 }
-
-/** Global switch is the master; a node can opt out (false) or inherit (undefined). */
-export function nodePingEnabled(node: TopologyNode, globalEnabled: boolean) {
-  return globalEnabled && node.ping !== false
-}
-
-/** The ICMP target is strictly the node's own IP field; linked devices are not consulted. */
+export function nodePingEnabled(node: TopologyNode, globalEnabled: boolean) { return globalEnabled && node.ping !== false }
 export function pingIpFor(node: TopologyNode): string | null {
   const candidate = (node.ip ?? '').trim()
   return isIpAddress(candidate) ? candidate : null
 }
-
+export function pingTitle(ping: NodePingState) {
+  const time = ping.checkedAt ? ` · ${new Date(ping.checkedAt).toLocaleTimeString('ru')}` : ''
+  if (ping.status === 'stale') return `ICMP с сервера: данные устарели / проверка недоступна${time}`
+  if (ping.status === 'pending') return 'ICMP с сервера: проверка…'
+  if (ping.status === 'down') return `ICMP с сервера: нет ответа${time}`
+  return `ICMP с сервера: отвечает${ping.rtt !== undefined ? `, ${ping.rtt} мс` : ''}${time}`
+}
 export function useNodePing(nodes: TopologyNode[], enabled: boolean) {
   const targets = useMemo(() => {
     const map = new Map<string, string>()
@@ -42,72 +41,53 @@ export function useNodePing(nodes: TopologyNode[], enabled: boolean) {
     }
     return map
   }, [nodes, enabled])
-  const signature = useMemo(() => [...targets].map(([id, ip]) => `${id}=${ip}`).join('|'), [targets])
-  const targetsRef = useRef(targets)
-  useEffect(() => { targetsRef.current = targets }, [targets])
+  const signature = [...targets].map(([id, ip]) => `${id}=${ip}`).join('|')
   const [states, setStates] = useState<Record<string, NodePingState>>({})
-  const visibleStates = useMemo(() => {
-    if (!enabled) return EMPTY_STATES
-    const next: Record<string, NodePingState> = {}
-    for (const nodeId of targets.keys()) next[nodeId] = states[nodeId] ?? { status: 'pending', checkedAt: 0 }
-    return next
-  }, [enabled, targets, states])
-
+  const [now, setNow] = useState(Date.now)
+  const [refresh, setRefresh] = useState(0)
+  const [checking, setChecking] = useState(false)
+  const targetRef = useRef(targets)
+  useEffect(() => { targetRef.current = targets }, [targets])
   useEffect(() => {
-    if (!enabled) return
-    if (!targetsRef.current.size) return
-
+    if (!enabled || !targetRef.current.size) return
     let disposed = false
-    let running = false
     let timer: number | undefined
-
+    const current = new Map(targetRef.current)
     const poll = async () => {
-      if (disposed || running) return
-      const current = targetsRef.current
-      const hosts = [...new Set(current.values())]
-      if (!hosts.length) {
-        setStates({})
-        return
-      }
-      running = true
+      setChecking(true)
       try {
-        const { results } = await pingHosts(hosts)
+        const { results } = await pingHosts([...new Set(current.values())])
         if (disposed) return
         const byHost = new Map(results.map((result) => [result.host, result]))
         const checkedAt = Date.now()
-        setStates((previous) => {
-          const next: Record<string, NodePingState> = {}
-          for (const [nodeId, host] of current) {
-            const result = byHost.get(host)
-            next[nodeId] = result
-              ? { status: result.alive ? 'up' : 'down', rtt: result.rtt, checkedAt }
-              : previous[nodeId] ?? { status: 'pending', checkedAt: 0 }
-          }
-          return next
-        })
+        setNow(checkedAt)
+        setStates((previous) => Object.fromEntries([...current].map(([id, host]) => {
+          const result = byHost.get(host)
+          const old = previous[id]?.host === host ? previous[id] : undefined
+          return [id, result ? { host, status: result.alive ? 'up' : 'down', lastStatus: result.alive ? 'up' : 'down', rtt: result.rtt, checkedAt } : { ...old, host, status: 'stale', checkedAt: old?.checkedAt ?? 0 }]
+        })))
       } catch {
-        // A transient API error must not paint healthy nodes red: keep the previous status.
+        if (!disposed) setStates((previous) => Object.fromEntries([...current].map(([id, host]) => {
+          const old = previous[id]?.host === host ? previous[id] : undefined
+          return [id, { ...old, host, status: 'stale', checkedAt: old?.checkedAt ?? 0 }]
+        })))
       } finally {
-        running = false
-        if (!disposed) timer = window.setTimeout(() => { void poll() }, POLL_INTERVAL_MS)
+        if (!disposed) { setChecking(false); timer = window.setTimeout(() => { void poll() }, POLL_INTERVAL_MS) }
       }
     }
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') return
-      window.clearTimeout(timer)
-      void poll()
-    }
-
-    document.addEventListener('visibilitychange', onVisibilityChange)
     void poll()
-    return () => {
-      disposed = true
-      window.clearTimeout(timer)
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-    }
-    // The signature captures node ids and resolved IPs; nodes/switches objects themselves change on every edit.
-  }, [enabled, signature])
-
-  return visibleStates
+    return () => { disposed = true; window.clearTimeout(timer) }
+  }, [enabled, signature, refresh])
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 5000)
+    const visible = () => { if (document.visibilityState === 'visible') { setNow(Date.now()); setRefresh((value) => value + 1) } }
+    document.addEventListener('visibilitychange', visible)
+    return () => { window.clearInterval(tick); document.removeEventListener('visibilitychange', visible) }
+  }, [])
+  const visibleStates = useMemo(() => Object.fromEntries(enabled ? [...targets].map(([id, host]) => {
+    const state = states[id]?.host === host ? states[id] : undefined
+    if (!state) return [id, { status: 'pending', host, checkedAt: 0 } as NodePingState]
+    return [id, state.checkedAt && now - state.checkedAt > STALE_AFTER_MS ? { ...state, status: 'stale' as const } : state]
+  }) : []), [enabled, targets, states, now])
+  return { states: visibleStates, checking: enabled && targets.size > 0 && checking, refresh: () => setRefresh((value) => value + 1) }
 }

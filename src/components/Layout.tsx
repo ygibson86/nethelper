@@ -1,8 +1,10 @@
-import { Boxes, Cable, FileCode2, LogOut, Menu, Moon, Network, Settings, SquareTerminal, Sun, X } from 'lucide-react'
+import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Settings, SquareTerminal, Sun, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNetHelper } from '../store'
 import { logout } from '../api'
+import { GlobalSearch } from './GlobalSearch'
+import { RecoveryHistory } from './RecoveryHistory'
 import { useSaveState } from './saveState'
 
 const pageNames: Record<string, string> = {
@@ -10,6 +12,7 @@ const pageNames: Record<string, string> = {
   topology: 'Схемы',
   core: 'Core-коммутаторы',
   templates: 'Шаблоны',
+  quality: 'Проверка данных',
   settings: 'Настройки',
   terminal: 'SSH-терминал',
 }
@@ -89,14 +92,17 @@ export function Layout() {
       {mobileNavOpen && <button className="sidebar-scrim" aria-label="Закрыть меню" onClick={() => setMobileNavOpen(false)} />}
       <aside ref={sidebarRef} id="main-sidebar" className={`sidebar ${mobileNavOpen ? 'open' : ''}`}>
         <div className="brand"><span className="brand-mark"><Network size={22} /></span><span>NetHelper</span></div>
+        <GlobalSearch />
         <nav className="main-nav" aria-label="Основная навигация">
           <NavLink to="/racks" onClick={() => setMobileNavOpen(false)}><Boxes size={19} /> Шкафы</NavLink>
           <NavLink to="/topology" onClick={() => setMobileNavOpen(false)}><Network size={19} /> Схемы</NavLink>
           <NavLink to="/core" onClick={() => setMobileNavOpen(false)}><Cable size={19} /> Core-коммутаторы</NavLink>
           <NavLink to="/templates" onClick={() => setMobileNavOpen(false)}><FileCode2 size={19} /> Шаблоны</NavLink>
+          <NavLink to="/quality" onClick={() => setMobileNavOpen(false)}><ListChecks size={19} /> Проверка данных</NavLink>
           <NavLink to="/terminal" target="_blank" rel="noopener" onClick={() => setMobileNavOpen(false)}><SquareTerminal size={19} /> Терминал</NavLink>
         </nav>
         <div className="sidebar-bottom">
+          <RecoveryHistory />
           <NavLink to="/settings" onClick={() => setMobileNavOpen(false)}><Settings size={19} /> Настройки</NavLink>
           <button className="theme-toggle" aria-pressed={settings.theme === 'light'} onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}>
             {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
