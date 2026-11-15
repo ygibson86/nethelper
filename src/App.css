@@ -503,14 +503,12 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
   --festive-gold-strong: #d9a52c;
   --festive-red: #e2604f;
   --festive-snow: rgba(255, 255, 255, .85);
-  --festive-wire: rgba(243, 199, 91, .55);
 }
 :root[data-festive="newyear"][data-theme="light"] {
   --festive-gold: #b98a13;
   --festive-gold-strong: #8a5d00;
   --festive-red: #c2452f;
   --festive-snow: rgba(74, 99, 133, .38);
-  --festive-wire: rgba(138, 93, 0, .42);
 }
 :root[data-festive="newyear"] body::before,
 :root[data-festive="newyear"] body::after {
@@ -541,26 +539,25 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 }
 @keyframes festive-snow-near { to { background-position: 0 232px; } }
 @keyframes festive-snow-far { to { background-position: 0 276px; } }
-:root[data-festive="newyear"] .sidebar { padding-top: 44px; }
+:root[data-festive="newyear"] .sidebar { padding-top: 34px; }
+:root[data-festive="newyear"] .main-content { padding-top: 34px; }
 .festive-garland { display: none; }
 :root[data-festive="newyear"] .festive-garland {
   display: block;
-  position: absolute;
-  top: 2px;
-  left: 12px;
-  width: calc(100% - 24px);
-  height: 36px;
-  overflow: visible;
+  position: fixed;
+  z-index: 15;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
   pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='24' viewBox='0 0 320 24'%3E%3Cpath d='M0 6 Q20 14 40 6 Q60 14 80 6 Q100 14 120 6 Q140 14 160 6 Q180 14 200 6 Q220 14 240 6 Q260 14 280 6 Q300 14 320 6' fill='none' stroke='%23c9a04a' stroke-width='1.2' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='17' r='6' fill='%23f6c95a' fill-opacity='.16'/%3E%3Cline x1='20' y1='10' x2='20' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='20' cy='17' r='3.1' fill='%23f6c95a'/%3E%3Ccircle cx='60' cy='17' r='6' fill='%23e2604f' fill-opacity='.16'/%3E%3Cline x1='60' y1='10' x2='60' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='60' cy='17' r='3.1' fill='%23e2604f'/%3E%3Ccircle cx='100' cy='17' r='6' fill='%235ccf8f' fill-opacity='.16'/%3E%3Cline x1='100' y1='10' x2='100' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='100' cy='17' r='3.1' fill='%235ccf8f'/%3E%3Ccircle cx='140' cy='17' r='6' fill='%235aa9e6' fill-opacity='.16'/%3E%3Cline x1='140' y1='10' x2='140' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='140' cy='17' r='3.1' fill='%235aa9e6'/%3E%3Ccircle cx='180' cy='17' r='6' fill='%23b58cf0' fill-opacity='.16'/%3E%3Cline x1='180' y1='10' x2='180' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='180' cy='17' r='3.1' fill='%23b58cf0'/%3E%3Ccircle cx='220' cy='17' r='6' fill='%23f09a4e' fill-opacity='.16'/%3E%3Cline x1='220' y1='10' x2='220' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='220' cy='17' r='3.1' fill='%23f09a4e'/%3E%3Ccircle cx='260' cy='17' r='6' fill='%23e07ad1' fill-opacity='.16'/%3E%3Cline x1='260' y1='10' x2='260' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='260' cy='17' r='3.1' fill='%23e07ad1'/%3E%3Ccircle cx='300' cy='17' r='6' fill='%236fdcd0' fill-opacity='.16'/%3E%3Cline x1='300' y1='10' x2='300' y2='14' stroke='%23c9a04a' stroke-width='1.2'/%3E%3Ccircle cx='300' cy='17' r='3.1' fill='%236fdcd0'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 320px 24px;
+  filter: drop-shadow(0 2px 5px rgba(201, 160, 74, .22));
+  animation: festive-glow 5s ease-in-out infinite;
 }
-.festive-wire { fill: none; stroke: var(--festive-wire); stroke-width: 1.4; stroke-linecap: round; }
-.festive-bulb { filter: drop-shadow(0 0 4px currentColor); animation: festive-twinkle 3.6s ease-in-out infinite; }
-.festive-bulb.gold { fill: var(--festive-gold); color: var(--festive-gold); }
-.festive-bulb.red { fill: var(--festive-red); color: var(--festive-red); }
-.festive-bulb:nth-of-type(2) { animation-delay: -1.2s; }
-.festive-bulb:nth-of-type(3) { animation-delay: -2.1s; }
-.festive-bulb:nth-of-type(4) { animation-delay: -.6s; }
-@keyframes festive-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes festive-glow { 0%, 100% { opacity: 1; } 50% { opacity: .82; } }
 :root[data-festive="newyear"] .brand-mark {
   color: #2b1c00;
   background: linear-gradient(145deg, #ffe7a8, var(--festive-gold-strong));
@@ -570,10 +567,14 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 .festive-setting { display: flex; align-items: center; gap: 10px; }
 .festive-reset { min-height: 30px; padding: 0 10px; font-size: .7rem; }
 
+@media (max-width: 620px) {
+  :root[data-festive="newyear"] .main-content { padding-top: 78px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root[data-festive="newyear"] body::before,
   :root[data-festive="newyear"] body::after { animation: none; opacity: .3; }
-  .festive-bulb { animation: none; }
+  .festive-garland { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
