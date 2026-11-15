@@ -292,7 +292,7 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 .templates-list { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .tpl-item { display: flex; flex: none; align-items: center; min-width: 0; border-bottom: 1px solid var(--border-soft); border-left: 3px solid transparent; text-align: left; }
 .tpl-item:hover { background: var(--surface-2); }
-.tpl-item.active { border-left-color: var(--accent); background: var(--accent-soft); }
+.tpl-item.active { background: var(--surface-3); }
 .tpl-item.disabled { opacity: .5; }
 .tpl-item-open { display: grid; gap: 6px; flex: 1; min-width: 0; border: 0; padding: 12px 8px 12px 11px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .tpl-item-open:disabled { cursor: default; }
