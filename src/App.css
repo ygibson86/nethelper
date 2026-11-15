@@ -497,6 +497,77 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
   .quality-list article { align-items: flex-start; flex-direction: column; }
 }
 
+/* Новогоднее оформление: только браузер, без серверных настроек и изменений данных */
+:root[data-festive="newyear"] {
+  --festive-gold: #f3c75b;
+  --festive-gold-strong: #d9a52c;
+  --festive-red: #e2604f;
+  --festive-snow: rgba(255, 255, 255, .85);
+}
+:root[data-festive="newyear"][data-theme="light"] {
+  --festive-gold: #b98a13;
+  --festive-gold-strong: #8a5d00;
+  --festive-red: #c2452f;
+  --festive-snow: rgba(74, 99, 133, .38);
+}
+:root[data-festive="newyear"] body::before,
+:root[data-festive="newyear"] body::after {
+  content: '';
+  position: fixed;
+  inset: -60% 0 -10%;
+  z-index: 5;
+  pointer-events: none;
+  opacity: .55;
+}
+:root[data-festive="newyear"] body::before {
+  background-image:
+    radial-gradient(circle at 22px 34px, var(--festive-snow) 0 1.7px, transparent 2.4px),
+    radial-gradient(circle at 96px 128px, var(--festive-snow) 0 1.2px, transparent 1.9px),
+    radial-gradient(circle at 168px 74px, var(--festive-snow) 0 2px, transparent 2.7px),
+    radial-gradient(circle at 232px 198px, var(--festive-snow) 0 1.4px, transparent 2.1px);
+  background-size: 264px 232px;
+  animation: festive-snow-near 22s linear infinite;
+}
+:root[data-festive="newyear"] body::after {
+  background-image:
+    radial-gradient(circle at 64px 42px, var(--festive-snow) 0 2.4px, transparent 3.1px),
+    radial-gradient(circle at 148px 122px, var(--festive-snow) 0 1.7px, transparent 2.4px),
+    radial-gradient(circle at 34px 174px, var(--festive-snow) 0 2px, transparent 2.7px);
+  background-size: 312px 276px;
+  opacity: .3;
+  animation: festive-snow-far 34s linear infinite;
+}
+@keyframes festive-snow-near { to { background-position: 0 232px; } }
+@keyframes festive-snow-far { to { background-position: 0 276px; } }
+:root[data-festive="newyear"] .sidebar::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 12px;
+  right: 12px;
+  height: 14px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 6px 7px, var(--festive-gold) 0 2.7px, transparent 3.5px),
+    radial-gradient(circle at 17px 7px, var(--festive-red) 0 2.7px, transparent 3.5px);
+  background-size: 22px 14px;
+  filter: drop-shadow(0 0 4px rgba(243, 199, 91, .55));
+}
+:root[data-festive="newyear"] .brand-mark {
+  color: #2b1c00;
+  background: linear-gradient(145deg, #ffe7a8, var(--festive-gold-strong));
+  box-shadow: 0 0 24px rgba(243, 199, 91, .35);
+}
+:root[data-festive="newyear"] .eyebrow { color: var(--festive-gold-strong); }
+:root[data-festive="newyear"] .festive-toggle[aria-pressed="true"] { color: var(--festive-gold-strong); background: color-mix(in srgb, var(--festive-gold) 14%, transparent); }
+.festive-setting { display: flex; align-items: center; gap: 10px; }
+.festive-reset { min-height: 30px; padding: 0 10px; font-size: .7rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-festive="newyear"] body::before,
+  :root[data-festive="newyear"] body::after { animation: none; opacity: .3; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

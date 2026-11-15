@@ -7,6 +7,7 @@ import { SafeAction } from '../components/SafeAction'
 import { ManufacturerEditor } from '../components/ManufacturerEditor'
 import { downloadBackup } from '../backup'
 import { parseAppData } from '../dataValidation'
+import { useFestive } from '../useFestive'
 
 const vendorDeviceTypes: { value: DeviceType; label: string }[] = [
   { value: 'switch', label: 'Коммутаторы' }, { value: 'router', label: 'Маршрутизаторы' }, { value: 'server', label: 'Серверы' }, { value: 'pc', label: 'Компьютеры' }, { value: 'firewall', label: 'Межсетевые экраны' }, { value: 'access-point', label: 'Точки доступа' }, { value: 'phone', label: 'IP-телефоны' }, { value: 'camera', label: 'Камеры' }, { value: 'ups', label: 'ИБП' }, { value: 'nas', label: 'NAS' }, { value: 'printer', label: 'Принтеры' }, { value: 'patch-panel', label: 'Патч-панели' },
@@ -18,6 +19,7 @@ const appVersion = __APP_VERSION__.replace(/\.0$/, '')
 
 export function SettingsPage() {
   const store = useNetHelper()
+  const festive = useFestive()
   const fileRef = useRef<HTMLInputElement>(null)
   const [vendor, setVendor] = useState(defaultVendor)
   const [editingVendor, setEditingVendor] = useState<Manufacturer | null>(null)
@@ -61,6 +63,7 @@ export function SettingsPage() {
         <div className="setting-row"><div><strong>Тема</strong><span>Цветовая схема приложения</span></div><div className="segmented"><button aria-pressed={store.settings.theme === 'dark'} className={store.settings.theme === 'dark' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'dark' })}><Moon size={16} /> Тёмная</button><button aria-pressed={store.settings.theme === 'light'} className={store.settings.theme === 'light' ? 'active' : ''} onClick={() => store.updateSettings({ theme: 'light' })}><Sun size={16} /> Светлая</button></div></div>
         <div className="setting-row"><div><strong>Размер шрифта</strong><span>{store.settings.fontSize} px</span></div><input aria-label="Размер шрифта интерфейса" type="range" min="13" max="18" value={store.settings.fontSize} onChange={(event) => store.updateSettings({ fontSize: Number(event.target.value) })} /></div>
         <div className="setting-row"><div><strong>ICMP-проверка</strong><span>Доступность узлов на схемах, ping раз в 30 секунд</span></div><label className="toggle"><input type="checkbox" role="switch" checked={store.settings.pingEnabled} onChange={(event) => store.updateSettings({ pingEnabled: event.target.checked })} /><span className="toggle-track" /> {store.settings.pingEnabled ? 'Включена' : 'Отключена'}</label></div>
+        <div className="setting-row"><div><strong>Новогоднее оформление</strong><span>Снег и гирлянда; по сезону — с 1 декабря по 14 января</span></div><div className="festive-setting"><button className="button festive-reset" disabled={festive.choice === null} onClick={festive.reset}>По сезону</button><label className="toggle"><input type="checkbox" role="switch" checked={festive.active} onChange={festive.toggle} /><span className="toggle-track" /> {festive.active ? 'Включено' : 'Отключено'}</label></div></div>
       </section>
       <section className="settings-card vendors-card">
         <div className="settings-card-title"><div><h2>Производители</h2><p>Цвета и короткие обозначения оборудования</p></div></div>

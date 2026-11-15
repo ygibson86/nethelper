@@ -1,8 +1,9 @@
-import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Settings, SquareTerminal, Sun, X } from 'lucide-react'
+import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Settings, Snowflake, SquareTerminal, Sun, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNetHelper } from '../store'
 import { logout } from '../api'
+import { useFestive } from '../useFestive'
 import { GlobalSearch } from './GlobalSearch'
 import { useSaveState } from './saveState'
 
@@ -21,6 +22,7 @@ export function Layout() {
   const updateSettings = useNetHelper((state) => state.updateSettings)
   const location = useLocation()
   const saveState = useSaveState()
+  const festive = useFestive()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
@@ -56,6 +58,13 @@ export function Layout() {
     document.documentElement.dataset.theme = settings.theme
     document.documentElement.style.fontSize = `${settings.fontSize}px`
   }, [settings])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (festive.active) root.dataset.festive = 'newyear'
+    else delete root.dataset.festive
+    return () => { delete root.dataset.festive }
+  }, [festive.active])
 
   useEffect(() => {
     const section = location.pathname.split('/').filter(Boolean)[0]
@@ -105,6 +114,10 @@ export function Layout() {
           <button className="theme-toggle" aria-pressed={settings.theme === 'light'} onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}>
             {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             {settings.theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+          </button>
+          <button className="theme-toggle festive-toggle" aria-pressed={festive.active} aria-label="Новогоднее оформление" title="Новогоднее оформление" onClick={festive.toggle}>
+            <Snowflake size={18} />
+            Новый год
           </button>
           <button className="theme-toggle" onClick={() => { void signOut() }}><LogOut size={18} /> Выйти</button>
           <div className={`storage-note save-${saveState.status}`} role="status"><span className="status-dot" /> {saveLabel}</div>
