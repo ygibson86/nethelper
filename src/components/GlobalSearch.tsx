@@ -14,6 +14,7 @@ export function GlobalSearch() {
   const visible = results.slice(0, 80)
   const navigate = useNavigate()
   const location = useLocation()
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const lastCtrl = useRef(0)
   const ctrlDown = useRef(false)
   const chordUsed = useRef(false)
@@ -26,7 +27,7 @@ export function GlobalSearch() {
     const up = (event: KeyboardEvent) => {
       if (event.key !== 'Control' || !ctrlDown.current) return
       ctrlDown.current = false
-      if (chordUsed.current || document.querySelector('[role="dialog"]') || location.pathname.startsWith('/terminal')) { lastCtrl.current = 0; return }
+      if (chordUsed.current || triggerRef.current?.closest('[inert]') || document.querySelector('[role="dialog"]') || location.pathname.startsWith('/terminal')) { lastCtrl.current = 0; return }
       const target = event.target
       if (target instanceof HTMLElement && target.closest('input,textarea,select,[contenteditable="true"],.xterm')) { lastCtrl.current = 0; return }
       const now = performance.now()
@@ -40,7 +41,7 @@ export function GlobalSearch() {
   }, [location.pathname])
   const select = (to: string) => { setOpen(false); setQuery(''); setIndex(0); navigate(to) }
   return <>
-    <button className="global-search-trigger" onClick={() => setOpen(true)}><Search size={18} /><span>Найти устройство</span><kbd>Ctrl ×2</kbd></button>
+    <button ref={triggerRef} className="global-search-trigger" onClick={() => setOpen(true)}><Search size={18} /><span>Найти устройство</span><kbd>Ctrl ×2</kbd></button>
     {open && <Modal title="Поиск по IP / hostname" onClose={() => setOpen(false)} className="global-search-modal"><div className="global-search-content" onKeyDown={(event) => {
       if (event.key === 'ArrowDown') { event.preventDefault(); setIndex((value) => Math.min(value + 1, visible.length - 1)) }
       if (event.key === 'ArrowUp') { event.preventDefault(); setIndex((value) => Math.max(0, value - 1)) }

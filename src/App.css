@@ -88,7 +88,9 @@ kbd { font-family: "JetBrains Mono", monospace; background: var(--surface-3); co
 .switch-controls button:hover { color: var(--text); background: var(--surface-3); }
 .switch-controls button.danger, .switch-controls button.danger:hover { color: var(--danger); }
 .switch-access { position: absolute; z-index: 3; right: 4px; bottom: 4px; display: flex; gap: 2px; }
-.switch-access button { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 4px; color: var(--accent); background: var(--surface-3); }
+.switch-access button, .switch-access .web-access-link { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 4px; color: var(--accent); background: var(--surface-3); text-decoration: none; }
+.switch-card:has(.web-access-link) { padding-bottom: 36px; }
+.web-access-link:hover { color: var(--text); border-color: var(--accent); }
 .switch-access button:disabled { opacity: .65; }
 .empty-slot { border: 1px dashed var(--border); color: var(--faint); padding: 19px; text-align: center; border-radius: 4px; font-size: .68rem; }
 .rack-add { width: calc(100% - 20px); margin: 8px 10px; min-height: 30px; border-style: dashed; color: var(--muted); background: transparent; font-size: .68rem; }
@@ -125,7 +127,15 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .mode-switch, .segmented { display: flex; padding: 3px; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; }
 .mode-switch button, .segmented button { min-height: 30px; padding: 0 10px; border: 0; background: transparent; color: var(--muted); border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: .72rem; }
 .mode-switch button.active, .segmented button.active { background: var(--surface-3); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
-.topology-workspace { height: calc(100vh - 151px); min-height: 550px; display: grid; grid-template-columns: 210px minmax(0, 1fr); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.topology-view-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.topology-view-controls > span { color: var(--muted); font-size: .72rem; }
+.topology-workspace { height: calc(100vh - 200px); min-height: 550px; display: grid; grid-template-columns: 210px minmax(0, 1fr); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.topology-workspace.list-collapsed { grid-template-columns: minmax(0, 1fr); }
+.topology-page.workspace-expanded { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; height: 100dvh; padding: 16px; background: var(--bg); overflow: auto; }
+.workspace-expanded > .page-header, .workspace-expanded > .topology-view-controls { flex-shrink: 0; }
+.workspace-expanded > .topology-workspace { flex: 1; height: auto; min-height: 0; }
+.workspace-expanded .empty-state { min-height: 0; }
+.topology-list[hidden] { display: none; }
 .topology-list { padding: 13px 9px; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .topology-items { overflow-y: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 3px; }
 .topology-items::-webkit-scrollbar { width: 0; height: 0; display: none; }
@@ -146,7 +156,7 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .topology-manage button { border: 0; background: transparent; color: var(--muted); padding: 7px 9px; display: flex; gap: 7px; align-items: center; cursor: pointer; font-size: .68rem; }
 .topology-manage button:hover { color: var(--text); }
 .topology-manage button.danger-text:hover { color: var(--danger); }
-.canvas-panel { min-width: 0; display: flex; flex-direction: column; }
+.canvas-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .canvas-title { flex: 0 0 53px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
 .canvas-title > div { display: grid; gap: 3px; }
 .canvas-title strong { font-size: .82rem; }.canvas-title span { color: var(--muted); font-size: .64rem; }
@@ -196,6 +206,9 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .edge-detail-label { padding: 3px 6px; color: var(--muted); font-size: 8px; }
 .handle-settings { display: grid; gap: 6px; padding: 11px; border: 1px solid var(--border-soft); border-radius: 6px; }
 .handle-settings > strong { color: var(--text); font-size: .73rem; }.handle-settings > span { color: var(--muted); font-size: .65rem; }.handle-settings > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }.handle-settings label { font-size: .62rem; }.handle-settings input { width: 100%; }
+.node-web-details { display: grid; gap: 8px; }
+.node-web-details > .button { text-decoration: none; }
+.web-url-preview { overflow-wrap: anywhere; color: var(--muted); font-size: .68rem; font-weight: 400; }
 .node-inspector { position: fixed; z-index: 80; right: 28px; bottom: 28px; width: 280px; display: grid; gap: 8px; padding: 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow); }
 .node-inspector-close { position: absolute; top: 6px; right: 6px; }
 .node-inspector > small { color: var(--muted); margin: -4px 0 4px 58px; }
@@ -381,6 +394,12 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
   .toolbar { width: 100%; flex-wrap: wrap; }
   .racks-grid, .settings-grid { grid-template-columns: 1fr; }
   .topology-workspace { height: auto; min-height: 720px; grid-template-columns: 1fr; grid-template-rows: 180px minmax(520px, 65vh); }
+  .topology-workspace.list-collapsed { min-height: 520px; grid-template-rows: minmax(520px, 65vh); }
+  .topology-page.workspace-expanded { padding: 10px; }
+  .workspace-expanded > .page-header { gap: 10px; margin-bottom: 10px; }
+  .workspace-expanded > .topology-workspace { min-height: 0; grid-template-rows: minmax(100px, 25%) minmax(0, 1fr); }
+  .workspace-expanded > .topology-workspace.list-collapsed { grid-template-rows: minmax(0, 1fr); }
+  .workspace-expanded .topology-view-controls > span { display: none; }
   .topology-list { border-right: 0; border-bottom: 1px solid var(--border); }
   .canvas-title { min-height: 53px; height: auto; gap: 10px; }
   .core-summary { grid-template-columns: 1fr; gap: 12px; }

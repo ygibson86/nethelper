@@ -1,12 +1,13 @@
 {
   "name": "nethelper",
   "private": true,
-  "version": "1.23.0",
+  "version": "1.24.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "npm --prefix backend run build && node --experimental-strip-types --test tests/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

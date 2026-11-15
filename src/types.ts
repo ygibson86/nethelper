@@ -26,6 +26,7 @@ export interface NetworkSwitch {
   description: string
   rackId: string
   topologyId?: string
+  webUrl?: string
   isCore?: boolean
 }
 
@@ -53,6 +54,7 @@ export interface TopologyNode {
   groupLabelPosition?: 'top' | 'center'
   switchId?: string
   ip?: string
+  webUrl?: string
   ping?: boolean
   fontSize?: number
 }
