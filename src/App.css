@@ -401,8 +401,9 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 
 @media (max-width: 900px) {
   .templates-page { height: auto; min-height: 0; }
-  .templates-layout { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(230px, 35vh) minmax(420px, 65vh); }
-  .templates-sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+  .templates-layout { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .templates-sidebar { max-height: 44vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  .tpl-view { min-height: 58vh; }
 }
 
 .field-error { color: var(--danger) !important; font-size: .75rem; }
