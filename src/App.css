@@ -503,12 +503,14 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
   --festive-gold-strong: #d9a52c;
   --festive-red: #e2604f;
   --festive-snow: rgba(255, 255, 255, .85);
+  --festive-wire: rgba(243, 199, 91, .55);
 }
 :root[data-festive="newyear"][data-theme="light"] {
   --festive-gold: #b98a13;
   --festive-gold-strong: #8a5d00;
   --festive-red: #c2452f;
   --festive-snow: rgba(74, 99, 133, .38);
+  --festive-wire: rgba(138, 93, 0, .42);
 }
 :root[data-festive="newyear"] body::before,
 :root[data-festive="newyear"] body::after {
@@ -539,33 +541,39 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 }
 @keyframes festive-snow-near { to { background-position: 0 232px; } }
 @keyframes festive-snow-far { to { background-position: 0 276px; } }
-:root[data-festive="newyear"] .sidebar::before {
-  content: '';
+:root[data-festive="newyear"] .sidebar { padding-top: 44px; }
+.festive-garland { display: none; }
+:root[data-festive="newyear"] .festive-garland {
+  display: block;
   position: absolute;
-  top: 3px;
+  top: 2px;
   left: 12px;
-  right: 12px;
-  height: 14px;
+  width: calc(100% - 24px);
+  height: 36px;
+  overflow: visible;
   pointer-events: none;
-  background-image:
-    radial-gradient(circle at 6px 7px, var(--festive-gold) 0 2.7px, transparent 3.5px),
-    radial-gradient(circle at 17px 7px, var(--festive-red) 0 2.7px, transparent 3.5px);
-  background-size: 22px 14px;
-  filter: drop-shadow(0 0 4px rgba(243, 199, 91, .55));
 }
+.festive-wire { fill: none; stroke: var(--festive-wire); stroke-width: 1.4; stroke-linecap: round; }
+.festive-bulb { filter: drop-shadow(0 0 4px currentColor); animation: festive-twinkle 3.6s ease-in-out infinite; }
+.festive-bulb.gold { fill: var(--festive-gold); color: var(--festive-gold); }
+.festive-bulb.red { fill: var(--festive-red); color: var(--festive-red); }
+.festive-bulb:nth-of-type(2) { animation-delay: -1.2s; }
+.festive-bulb:nth-of-type(3) { animation-delay: -2.1s; }
+.festive-bulb:nth-of-type(4) { animation-delay: -.6s; }
+@keyframes festive-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 :root[data-festive="newyear"] .brand-mark {
   color: #2b1c00;
   background: linear-gradient(145deg, #ffe7a8, var(--festive-gold-strong));
   box-shadow: 0 0 24px rgba(243, 199, 91, .35);
 }
 :root[data-festive="newyear"] .eyebrow { color: var(--festive-gold-strong); }
-:root[data-festive="newyear"] .festive-toggle[aria-pressed="true"] { color: var(--festive-gold-strong); background: color-mix(in srgb, var(--festive-gold) 14%, transparent); }
 .festive-setting { display: flex; align-items: center; gap: 10px; }
 .festive-reset { min-height: 30px; padding: 0 10px; font-size: .7rem; }
 
 @media (prefers-reduced-motion: reduce) {
   :root[data-festive="newyear"] body::before,
   :root[data-festive="newyear"] body::after { animation: none; opacity: .3; }
+  .festive-bulb { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

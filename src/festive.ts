@@ -16,11 +16,9 @@ function browserStorage(): FestiveStorage | null {
   }
 }
 
-/** Новогоднее оформление действует с 1 декабря по 14 января включительно. */
+/** Новогоднее оформление включается автоматически в декабре и выключается в январе. */
 export function isFestiveSeason(date: Date): boolean {
-  const month = date.getMonth()
-  if (month === 11) return true
-  return month === 0 && date.getDate() <= 14
+  return date.getMonth() === 11
 }
 
 /** Ручной выбор сильнее сезона; без выбора работает авто-режим. */

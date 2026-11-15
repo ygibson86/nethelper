@@ -1,4 +1,4 @@
-import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Settings, Snowflake, SquareTerminal, Sun, X } from 'lucide-react'
+import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Settings, SquareTerminal, Sun, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNetHelper } from '../store'
@@ -99,6 +99,13 @@ export function Layout() {
       <button ref={menuButtonRef} className="mobile-menu-button" aria-controls="main-sidebar" aria-label={mobileNavOpen ? 'Закрыть меню' : 'Открыть меню'} aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <X size={21} /> : <Menu size={21} />}</button>
       {mobileNavOpen && <button className="sidebar-scrim" aria-label="Закрыть меню" onClick={() => setMobileNavOpen(false)} />}
       <aside ref={sidebarRef} id="main-sidebar" className={`sidebar ${mobileNavOpen ? 'open' : ''}`}>
+        <svg className="festive-garland" viewBox="0 0 280 36" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path className="festive-wire" d="M0 5 Q35 30 70 5 Q105 30 140 5 Q175 30 210 5 Q245 30 280 5" />
+          <circle className="festive-bulb gold" cx="35" cy="23" r="3.2" />
+          <circle className="festive-bulb red" cx="105" cy="23" r="3.2" />
+          <circle className="festive-bulb gold" cx="175" cy="23" r="3.2" />
+          <circle className="festive-bulb red" cx="245" cy="23" r="3.2" />
+        </svg>
         <div className="brand"><span className="brand-mark"><Network size={22} /></span><span>NetHelper</span></div>
         <GlobalSearch />
         <nav className="main-nav" aria-label="Основная навигация">
@@ -114,10 +121,6 @@ export function Layout() {
           <button className="theme-toggle" aria-pressed={settings.theme === 'light'} onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}>
             {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             {settings.theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-          </button>
-          <button className="theme-toggle festive-toggle" aria-pressed={festive.active} aria-label="Новогоднее оформление" title="Новогоднее оформление" onClick={festive.toggle}>
-            <Snowflake size={18} />
-            Новый год
           </button>
           <button className="theme-toggle" onClick={() => { void signOut() }}><LogOut size={18} /> Выйти</button>
           <div className={`storage-note save-${saveState.status}`} role="status"><span className="status-dot" /> {saveLabel}</div>

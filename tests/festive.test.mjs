@@ -12,13 +12,12 @@ const memoryStorage = () => {
   }
 }
 
-test('festive season runs from 1 December to 14 January inclusive', () => {
+test('festive season covers December and is off for the rest of the year', () => {
   assert.equal(isFestiveSeason(new Date(2026, 10, 30)), false)
   assert.equal(isFestiveSeason(new Date(2026, 11, 1)), true)
   assert.equal(isFestiveSeason(new Date(2026, 11, 31, 23, 59)), true)
-  assert.equal(isFestiveSeason(new Date(2027, 0, 1)), true)
-  assert.equal(isFestiveSeason(new Date(2027, 0, 14, 23, 59)), true)
-  assert.equal(isFestiveSeason(new Date(2027, 0, 15)), false)
+  assert.equal(isFestiveSeason(new Date(2027, 0, 1)), false)
+  assert.equal(isFestiveSeason(new Date(2027, 0, 14)), false)
   assert.equal(isFestiveSeason(new Date(2027, 6, 15)), false)
 })
 
@@ -26,8 +25,9 @@ test('manual choice overrides the season and unknown values fall back to auto', 
   assert.equal(resolveFestive('on', new Date(2026, 6, 15)), true)
   assert.equal(resolveFestive('off', new Date(2026, 11, 20)), false)
   assert.equal(resolveFestive(null, new Date(2026, 11, 20)), true)
+  assert.equal(resolveFestive(null, new Date(2026, 0, 10)), false)
   assert.equal(resolveFestive(null, new Date(2026, 6, 15)), false)
-  assert.equal(resolveFestive('maybe', new Date(2026, 0, 10)), true)
+  assert.equal(resolveFestive('maybe', new Date(2026, 11, 10)), true)
 })
 
 test('choice roundtrip keeps only on and off, reset removes the key', () => {
