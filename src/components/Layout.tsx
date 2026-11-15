@@ -101,10 +101,10 @@ export function Layout() {
       <aside ref={sidebarRef} id="main-sidebar" className={`sidebar ${mobileNavOpen ? 'open' : ''}`}>
         <svg className="festive-garland" viewBox="0 0 280 36" preserveAspectRatio="none" aria-hidden="true" focusable="false">
           <path className="festive-wire" d="M0 5 Q35 30 70 5 Q105 30 140 5 Q175 30 210 5 Q245 30 280 5" />
-          <circle className="festive-bulb gold" cx="35" cy="23" r="3.2" />
-          <circle className="festive-bulb red" cx="105" cy="23" r="3.2" />
-          <circle className="festive-bulb gold" cx="175" cy="23" r="3.2" />
-          <circle className="festive-bulb red" cx="245" cy="23" r="3.2" />
+          <circle className="festive-bulb gold" cx="35" cy="20.5" r="3.2" />
+          <circle className="festive-bulb red" cx="105" cy="20.5" r="3.2" />
+          <circle className="festive-bulb gold" cx="175" cy="20.5" r="3.2" />
+          <circle className="festive-bulb red" cx="245" cy="20.5" r="3.2" />
         </svg>
         <div className="brand"><span className="brand-mark"><Network size={22} /></span><span>NetHelper</span></div>
         <GlobalSearch />
