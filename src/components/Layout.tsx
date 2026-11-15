@@ -146,7 +146,7 @@ export function Modal({ title, children, onClose, className }: ModalProps) {
     while (branch?.parentElement && branch.parentElement !== document.body) {
       const parent: HTMLElement = branch.parentElement
       for (const sibling of parent.children) {
-        if (sibling !== branch && sibling instanceof HTMLElement) {
+        if (sibling !== branch && sibling instanceof HTMLElement && !sibling.inert) {
           inerted.push({ element: sibling, wasInert: sibling.inert })
           sibling.inert = true
         }

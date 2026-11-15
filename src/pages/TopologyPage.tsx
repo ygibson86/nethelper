@@ -111,7 +111,6 @@ export function TopologyPage() {
   const expandButtonRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!expanded) return
-    const previousOverflow = document.body.style.overflow
     const inerted: { element: HTMLElement; wasInert: boolean }[] = []
     let branch: HTMLElement | null = workspaceRef.current
     while (branch?.parentElement && branch.parentElement !== document.body) {
@@ -125,7 +124,6 @@ export function TopologyPage() {
       branch = parent
     }
     const expandButton = expandButtonRef.current
-    document.body.style.overflow = 'hidden'
     expandButton?.focus({ preventScroll: true })
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || document.querySelector('[role="dialog"]')) return
@@ -140,7 +138,6 @@ export function TopologyPage() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => {
-      document.body.style.overflow = previousOverflow
       inerted.forEach(({ element, wasInert }) => { element.inert = wasInert })
       window.removeEventListener('keydown', onKeyDown)
       if (expandButton?.isConnected) expandButton.focus({ preventScroll: true })

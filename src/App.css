@@ -131,8 +131,10 @@ label.checkbox { display: flex; grid-template-columns: auto 1fr; flex-direction:
 .topology-view-controls > span { color: var(--muted); font-size: .72rem; }
 .topology-workspace { height: calc(100vh - 200px); min-height: 550px; display: grid; grid-template-columns: 210px minmax(0, 1fr); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface); }
 .topology-workspace.list-collapsed { grid-template-columns: minmax(0, 1fr); }
+body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 .topology-page.workspace-expanded { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; height: 100dvh; padding: 16px; background: var(--bg); overflow: auto; }
 .workspace-expanded > .page-header, .workspace-expanded > .topology-view-controls { flex-shrink: 0; }
+.workspace-expanded .toolbar { flex-wrap: wrap; justify-content: flex-end; }
 .workspace-expanded > .topology-workspace { flex: 1; height: auto; min-height: 0; }
 .workspace-expanded .empty-state { min-height: 0; }
 .topology-list[hidden] { display: none; }
