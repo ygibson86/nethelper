@@ -176,7 +176,7 @@ export function TemplatesPage() {
             const locked = Boolean(inlineEditId)
             return <div key={template.id} className={`tpl-item ${active?.id === template.id ? 'active' : ''} ${locked && inlineEditId !== template.id ? 'disabled' : ''}`}>
               <button className="tpl-item-open" disabled={locked} aria-pressed={active?.id === template.id} onClick={() => setActiveId(template.id)}>
-                <span className="tpl-item-title"><strong>{template.title}</strong><span className={`tpl-vendor-badge small vendor-${template.vendor}`}>{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span></span>
+                <span className="tpl-item-title"><span className={`tpl-vendor-badge small vendor-${template.vendor}`}>{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span><strong>{template.title}</strong></span>
                 {templateSearchMatch(template, query) === 'body' && <small className="tpl-search-match">Совпадение в конфигурации</small>}
               </button>
               <button type="button" className={`tpl-fav ${template.favorite ? 'on' : ''}`} aria-pressed={Boolean(template.favorite)} aria-label={template.favorite ? `Открепить шаблон «${template.title}»` : `Закрепить шаблон «${template.title}»`} title={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} disabled={locked} onClick={() => toggleFavorite(template)}><Star size={15} fill={template.favorite ? 'currentColor' : 'none'} /></button>
