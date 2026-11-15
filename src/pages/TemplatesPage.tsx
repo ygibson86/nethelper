@@ -132,7 +132,6 @@ function ViewCard({ template, highlight, onEdit, onDuplicate, onToggleFavorite, 
       </div>
     </div>
     <div className="tpl-output">
-      <div className="tpl-output-head"><strong>Конфигурация</strong><span className="tpl-hint">{editing ? 'Esc — отменить правку' : 'Двойной клик — правка'}</span></div>
       {copyError && <p className="field-error tpl-copy-error" role="alert">{copyError}</p>}
       {editing ? (
         <div className="tpl-inline-edit" onKeyDown={(event) => { if (event.key === 'Escape') onEditingChange(false) }}><EditableConfig value={draft} onChange={setDraft} highlight={highlight} /></div>
@@ -177,8 +176,7 @@ export function TemplatesPage() {
             const locked = Boolean(inlineEditId)
             return <div key={template.id} className={`tpl-item ${active?.id === template.id ? 'active' : ''} ${locked && inlineEditId !== template.id ? 'disabled' : ''}`}>
               <button className="tpl-item-open" disabled={locked} aria-pressed={active?.id === template.id} onClick={() => setActiveId(template.id)}>
-                <strong>{template.title}</strong>
-                <span className="tpl-item-meta"><span className={`tpl-vendor-badge small vendor-${template.vendor}`}>{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span>{template.description && <span className="tpl-item-desc" title={template.description}>{template.description}</span>}</span>
+                <span className="tpl-item-title"><strong>{template.title}</strong><span className={`tpl-vendor-badge small vendor-${template.vendor}`}>{template.vendor === 'eltex' ? 'Eltex' : 'Cisco'}</span></span>
                 {templateSearchMatch(template, query) === 'body' && <small className="tpl-search-match">Совпадение в конфигурации</small>}
               </button>
               <button type="button" className={`tpl-fav ${template.favorite ? 'on' : ''}`} aria-pressed={Boolean(template.favorite)} aria-label={template.favorite ? `Открепить шаблон «${template.title}»` : `Закрепить шаблон «${template.title}»`} title={template.favorite ? 'Открепить шаблон' : 'Закрепить шаблон'} disabled={locked} onClick={() => toggleFavorite(template)}><Star size={15} fill={template.favorite ? 'currentColor' : 'none'} /></button>
