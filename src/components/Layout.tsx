@@ -96,10 +96,10 @@ export function Layout() {
 
   return (
     <div className="app-shell">
-      <div className="festive-garland" aria-hidden="true" />
       <button ref={menuButtonRef} className="mobile-menu-button" aria-controls="main-sidebar" aria-label={mobileNavOpen ? 'Закрыть меню' : 'Открыть меню'} aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <X size={21} /> : <Menu size={21} />}</button>
       {mobileNavOpen && <button className="sidebar-scrim" aria-label="Закрыть меню" onClick={() => setMobileNavOpen(false)} />}
       <aside ref={sidebarRef} id="main-sidebar" className={`sidebar ${mobileNavOpen ? 'open' : ''}`}>
+        <div className="festive-garland" aria-hidden="true" />
         <div className="brand"><span className="brand-mark"><Network size={22} /></span><span>NetHelper</span></div>
         <GlobalSearch />
         <nav className="main-nav" aria-label="Основная навигация">
