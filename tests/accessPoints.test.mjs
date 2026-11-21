@@ -18,10 +18,10 @@ const base = () => ({
 })
 
 test('MAC normalization accepts common notations and rejects junk', () => {
-  assert.equal(normalizeMac('aa-bb-cc-dd-ee-ff'), 'aa:bb:cc:dd:ee:ff')
-  assert.equal(normalizeMac('aabb.ccdd.eeff'), 'aa:bb:cc:dd:ee:ff')
-  assert.equal(normalizeMac(' AABBCCDDEEFF '), 'aa:bb:cc:dd:ee:ff')
-  assert.equal(normalizeMac('ec:b1:e0:21:3a:60'), 'ec:b1:e0:21:3a:60')
+  assert.equal(normalizeMac('aa-bb-cc-dd-ee-ff'), 'AA:BB:CC:DD:EE:FF')
+  assert.equal(normalizeMac('aabb.ccdd.eeff'), 'AA:BB:CC:DD:EE:FF')
+  assert.equal(normalizeMac(' AABBCCDDEEFF '), 'AA:BB:CC:DD:EE:FF')
+  assert.equal(normalizeMac('ec:b1:e0:21:3a:60'), 'EC:B1:E0:21:3A:60')
   assert.equal(normalizeMac('nope'), null)
   assert.equal(normalizeMac(''), null)
 })
@@ -43,7 +43,7 @@ test('import creates points with uplink by switch IP', () => {
   const created = plan.create[0]
   assert.equal(created.uplinkSwitchId, 'sw1')
   assert.equal(created.uplinkPort, '2')
-  assert.equal(created.mac, 'aa:bb:cc:dd:ee:01')
+  assert.equal(created.mac, 'AA:BB:CC:DD:EE:01')
   assert.equal(created.description, 'ИТ')
   assert.equal(created.deviceType, 'access-point')
 })

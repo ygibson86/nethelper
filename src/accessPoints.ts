@@ -2,11 +2,11 @@ import type { AppData, NetworkSwitch } from './types'
 
 export const AP_DEVICE_TYPE = 'access-point' as const
 
-/** MAC в виде aa:bb:cc:dd:ee:ff или null, если строка не похожа на MAC. */
+/** MAC в виде AA:BB:CC:DD:EE:FF или null, если строка не похожа на MAC. */
 export function normalizeMac(value: string | undefined): string | null {
   const raw = (value ?? '').trim()
   if (!raw) return null
-  const hex = raw.replace(/[^0-9a-f]/gi, '').toLowerCase()
+  const hex = raw.replace(/[^0-9a-f]/gi, '').toUpperCase()
   if (hex.length !== 12) return null
   return hex.match(/.{2}/g)!.join(':')
 }

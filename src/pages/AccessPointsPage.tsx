@@ -55,7 +55,7 @@ export function AccessPointsPage() {
       return [
         device.hostname,
         device.ip,
-        device.mac ?? '',
+        (device.mac ?? '').toLowerCase(),
         device.description,
         device.model,
         device.note ?? '',
