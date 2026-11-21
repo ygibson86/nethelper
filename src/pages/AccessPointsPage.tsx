@@ -79,8 +79,8 @@ export function AccessPointsPage() {
     if (sort !== 'status') return filtered
     const rank = (device: NetworkSwitch) => {
       const state = ping[device.ip.trim()]
-      if (!state) return 2
-      return state.status === 'up' ? 0 : 1
+      if (!state) return 1
+      return state.status === 'down' ? 0 : 2
     }
     return [...filtered].sort((left, right) => rank(left) - rank(right) || left.hostname.localeCompare(right.hostname, 'ru', { numeric: true }))
   }, [filtered, sort, ping])
