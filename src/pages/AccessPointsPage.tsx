@@ -8,10 +8,9 @@ import { SafeAction } from '../components/SafeAction'
 import { WebInterfaceLink } from '../components/WebInterfaceLink'
 import { pingHosts } from '../api'
 import { accessPoints, accessPointsCsv, buildApImport, isValidIpv4, isValidMac, normalizeMac, resolveUplink, type ApImportPlan } from '../accessPoints'
-import { ipSortKey } from '../search'
 import { normalizeWebUrl } from '../webUrl'
 
-type SortKey = 'hostname' | 'ip' | 'location' | 'switch'
+type SortKey = 'hostname' | 'location' | 'switch'
 type PingState = { status: 'checking' | 'up' | 'down'; rtt?: number; checkedAt: number }
 
 const PING_INTERVAL_MS = 30_000
@@ -33,7 +32,7 @@ export function AccessPointsPage() {
   const { search } = useLocation()
   const linkedDeviceId = new URLSearchParams(search).get('device')
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<SortKey>('ip')
+  const [sort, setSort] = useState<SortKey>('hostname')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<NetworkSwitch | null>(null)
   const [adding, setAdding] = useState(false)
@@ -65,14 +64,13 @@ export function AccessPointsPage() {
       ].some((value) => value.toLowerCase().includes(term))
     })
     return list.sort((left, right) => {
-      if (sort === 'hostname') return left.hostname.localeCompare(right.hostname, 'ru', { numeric: true })
       if (sort === 'location') return left.description.localeCompare(right.description, 'ru') || left.hostname.localeCompare(right.hostname, 'ru', { numeric: true })
       if (sort === 'switch') {
         const leftUplink = resolveUplink(left, switches)
         const rightUplink = resolveUplink(right, switches)
         return (leftUplink?.address ?? '').localeCompare(rightUplink?.address ?? '', 'ru', { numeric: true }) || (leftUplink?.port ?? '').localeCompare(rightUplink?.port ?? '', 'ru', { numeric: true })
       }
-      return ipSortKey(left.ip).localeCompare(ipSortKey(right.ip)) || left.hostname.localeCompare(right.hostname, 'ru', { numeric: true })
+      return left.hostname.localeCompare(right.hostname, 'ru', { numeric: true })
     })
   }, [points, query, sort, switches])
 
@@ -266,19 +264,19 @@ export function AccessPointsPage() {
 
     <div className="ap-search-row">
       <div className="search-box"><Search size={19} /><input aria-label="Поиск точек доступа" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по имени, месту, IP, MAC, коммутатору и порту..." />{query && <button className="icon-button" aria-label="Очистить поиск" onClick={() => setQuery('')}><X size={16} /></button>}</div>
-      <label className="table-sort">Сортировка <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)}><option value="ip">По IP</option><option value="hostname">По имени</option><option value="location">По месту</option><option value="switch">По коммутатору</option></select></label>
+      <label className="table-sort">Сортировка <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)}><option value="hostname">По имени</option><option value="location">По месту</option><option value="switch">По коммутатору</option></select></label>
     </div>
 
     <div className="ap-summary" role="status">
       <span><strong>{points.length}</strong> точек</span>
       {counters.models.map(([model, count]) => <span key={model}>{model} — <strong>{count}</strong></span>)}
       <span className={unlinked.length ? 'ap-summary-warn' : ''}>{unlinked.length ? `Без привязки: ${unlinked.length}` : 'Все привязаны'}</span>
-      <span className="ap-summary-ping">{pingsActive ? <><Loader2 size={13} className="ap-spin" /> проверка ICMP…</> : 'ICMP проверяется, пока открыта эта страница'}</span>
+      <span className="ap-summary-ping">{pingsActive ? <><Loader2 size={13} className="ap-spin" /> проверка статуса…</> : 'Статус проверяется, пока открыта эта страница'}</span>
     </div>
 
     <div className="device-table-wrap">
       <table className="device-table ap-table">
-        <thead><tr><th>Точка</th><th>Место установки</th><th>IP / MAC</th><th>Коммутатор</th><th>Порт</th><th>ICMP</th><th aria-label="Действия" /></tr></thead>
+        <thead><tr><th>Точка</th><th>Место установки</th><th>MAC</th><th>Коммутатор</th><th>Порт</th><th>Статус</th><th aria-label="Действия" /></tr></thead>
         <tbody>
           {filtered.map((device) => {
             const uplink = resolveUplink(device, switches)
@@ -286,10 +284,10 @@ export function AccessPointsPage() {
             return <tr key={device.id} id={`ap-${device.id}`} className={selectedId === device.id ? 'highlighted' : ''} onClick={() => setSelectedId(device.id)}>
               <td><button className="table-device-link" onClick={(event) => { event.stopPropagation(); setSelectedId(device.id) }}>{device.hostname}</button><span>{[device.model, device.note].filter(Boolean).join(' · ') || 'модель не указана'}</span></td>
               <td>{device.description || <span>не указано</span>}</td>
-              <td>{device.ip}<span>{device.mac ?? 'MAC не указан'}</span></td>
+              <td>{device.mac ?? <span>MAC не указан</span>}</td>
               <td>{uplink?.switchDevice?.hostname ?? uplink?.address ?? <span>не привязана</span>}<span>{uplink?.switchDevice ? uplink.address : uplink?.address ? 'вне инвентаря' : ''}</span></td>
               <td>{uplink?.port || '—'}</td>
-              <td><span className={`ap-ping ap-ping-${state?.status ?? 'unknown'}`} title={state ? `${state.status === 'up' ? 'отвечает' : 'нет ответа'}${state.rtt ? `, ${state.rtt} мс` : ''} · ${new Date(state.checkedAt).toLocaleTimeString('ru')}` : 'ещё не проверялось'}>{state?.status === 'up' ? <Wifi size={15} /> : state?.status === 'down' ? <WifiOff size={15} /> : <span className="ap-ping-dot" />}</span></td>
+              <td><div className="ap-status-cell"><span className={`ap-ping ap-ping-${state?.status ?? 'unknown'}`} title={state ? `${state.status === 'up' ? 'отвечает' : 'нет ответа'}${state.rtt ? `, ${state.rtt} мс` : ''} · ${new Date(state.checkedAt).toLocaleTimeString('ru')} · по последнему известному IP` : 'ещё не проверялось'}>{state?.status === 'up' ? <Wifi size={15} /> : state?.status === 'down' ? <WifiOff size={15} /> : <span className="ap-ping-dot" />}</span></div></td>
               <td><div className="toolbar" onClick={(event) => event.stopPropagation()}>
                 {uplink?.switchDevice && <button className="icon-button" title={`Терминал ${uplink.switchDevice.hostname}`} aria-label={`Терминал ${uplink.switchDevice.hostname}`} onClick={() => openTerminal(uplink.switchDevice!.id)}><Terminal size={16} /></button>}
                 <WebInterfaceLink url={device.webUrl} className="icon-button" compact label={`Веб-интерфейс ${device.hostname}`} />
@@ -323,10 +321,9 @@ export function AccessPointsPage() {
           </section>
           <dl className="ap-detail-fields">
             <div><dt>Место установки</dt><dd>{selected.description || '—'}</dd></div>
-            <div><dt>IP</dt><dd>{selected.ip}</dd></div>
             <div><dt>MAC</dt><dd>{selected.mac ?? '—'}</dd></div>
             <div><dt>Модель</dt><dd>{selected.model || '—'}</dd></div>
-            <div><dt>ICMP</dt><dd>{state ? (state.status === 'up' ? `отвечает${state.rtt ? `, ${state.rtt} мс` : ''}` : 'нет ответа') : 'не проверялось'}</dd></div>
+            <div><dt>Статус</dt><dd>{state ? (state.status === 'up' ? `отвечает${state.rtt ? `, ${state.rtt} мс` : ''}` : 'нет ответа') : 'не проверялось'}</dd></div>
             {selected.note && <div><dt>Примечание</dt><dd>{selected.note}</dd></div>}
             {selected.webUrl && <div><dt>Веб-интерфейс</dt><dd><Globe size={13} /> {selected.webUrl}</dd></div>}
           </dl>
