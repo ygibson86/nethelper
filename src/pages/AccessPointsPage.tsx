@@ -10,7 +10,7 @@ import { pingHosts } from '../api'
 import { accessPoints, accessPointsCsv, buildApImport, isValidIpv4, isValidMac, normalizeMac, resolveUplink, type ApImportPlan } from '../accessPoints'
 import { normalizeWebUrl } from '../webUrl'
 
-type SortKey = 'hostname' | 'location' | 'switch'
+type SortKey = 'hostname' | 'location' | 'switch' | 'status'
 type PingState = { status: 'checking' | 'up' | 'down'; rtt?: number; checkedAt: number }
 
 const PING_INTERVAL_MS = 30_000
@@ -73,6 +73,17 @@ export function AccessPointsPage() {
       return left.hostname.localeCompare(right.hostname, 'ru', { numeric: true })
     })
   }, [points, query, sort, switches])
+
+  /** Сортировка по статусу считается отдельно: иначе опрос статусов перезапускал бы сам себя. */
+  const visible = useMemo(() => {
+    if (sort !== 'status') return filtered
+    const rank = (device: NetworkSwitch) => {
+      const state = ping[device.ip.trim()]
+      if (!state) return 2
+      return state.status === 'up' ? 0 : 1
+    }
+    return [...filtered].sort((left, right) => rank(left) - rank(right) || left.hostname.localeCompare(right.hostname, 'ru', { numeric: true }))
+  }, [filtered, sort, ping])
 
   const unlinked = useMemo(() => points.filter((device) => !resolveUplink(device, switches)), [points, switches])
   const linkedDevice = linkedDeviceId ? byId.get(linkedDeviceId) : undefined
@@ -264,7 +275,7 @@ export function AccessPointsPage() {
 
     <div className="ap-search-row">
       <div className="search-box"><Search size={19} /><input aria-label="Поиск точек доступа" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по имени, месту, IP, MAC, коммутатору и порту..." />{query && <button className="icon-button" aria-label="Очистить поиск" onClick={() => setQuery('')}><X size={16} /></button>}</div>
-      <label className="table-sort">Сортировка <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)}><option value="hostname">По имени</option><option value="location">По месту</option><option value="switch">По коммутатору</option></select></label>
+      <label className="table-sort">Сортировка <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)}><option value="hostname">По имени</option><option value="status">По статусу</option><option value="location">По месту</option><option value="switch">По коммутатору</option></select></label>
     </div>
 
     <div className="ap-summary" role="status">
@@ -278,7 +289,7 @@ export function AccessPointsPage() {
       <table className="device-table ap-table">
         <thead><tr><th>Точка</th><th>Место установки</th><th>MAC</th><th>Коммутатор</th><th>Порт</th><th>Статус</th><th aria-label="Действия" /></tr></thead>
         <tbody>
-          {filtered.map((device) => {
+          {visible.map((device) => {
             const uplink = resolveUplink(device, switches)
             const state = pingFor(device)
             return <tr key={device.id} id={`ap-${device.id}`} className={selectedId === device.id ? 'highlighted' : ''} onClick={() => setSelectedId(device.id)}>
