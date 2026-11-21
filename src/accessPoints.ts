@@ -199,10 +199,9 @@ export function buildApImport(text: string, data: AppData, options: ApImportOpti
       issues.push({ line: row.line, level: 'warning', message: `Коммутатор «${switchIp || switchName}» не найден в инвентаре — сохранён только адрес.` })
     }
     if (!port) issues.push({ line: row.line, level: 'warning', message: 'Порт не указан.' })
-    if (!mac) issues.push({ line: row.line, level: 'warning', message: 'MAC не указан.' })
     if (!location) issues.push({ line: row.line, level: 'warning', message: 'Не указано место установки.' })
 
-    if (switchDevice?.id === existing?.id) {
+    if (switchDevice && existing && switchDevice.id === existing.id) {
       issues.push({ line: row.line, level: 'warning', message: 'Точка подключена сама к себе — привязка не сохранена.' })
     }
 
