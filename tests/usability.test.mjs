@@ -22,6 +22,11 @@ test('search finds inventory, exact node and Core port, case insensitive', () =>
 test('IP sorting numeric; other addresses then empty', () => {
   assert.deepEqual(['', '10.0.0.100', '10.0.0.2', 'host'].sort((a, b) => ipSortKey(a).localeCompare(ipSortKey(b))), ['10.0.0.2', '10.0.0.100', 'host', ''])
 })
+test('access point without a rack is not reported as a broken rack link', () => {
+  const data = fixture()
+  data.switches.push({ id: 'ap1', hostname: 'AP-1', ip: '10.109.41.21', manufacturerId: '', deviceType: 'access-point', model: '', accessMethods: [], description: 'Кабинет', rackId: undefined })
+  assert.equal(inspectData(data).some((issue) => issue.id === 'rack:ap1'), false)
+})
 test('quality check clean fixture and diagnostics without mutation', () => {
   const data = fixture()
   assert.deepEqual(inspectData(data), [])

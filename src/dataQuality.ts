@@ -15,7 +15,7 @@ export function inspectData(data: AppData): DataIssue[] {
     if (ip) byIp.set(ip, [...(byIp.get(ip) ?? []), device])
     else add(`ip:${device.id}`, 'Без IP', device.hostname, 'IP не указан. Это может быть нормально для пассивного оборудования.', to, 'info')
     const rack = racks.get(device.rackId ?? '')
-    if (!rack || !rack.switchIds.includes(device.id)) add(`rack:${device.id}`, 'Связи', device.hostname, 'Шкаф отсутствует или устройство не включено в его список.', to, device.deviceType === 'access-point' ? 'info' : 'warning')
+    if (device.deviceType !== 'access-point' && (!rack || !rack.switchIds.includes(device.id))) add(`rack:${device.id}`, 'Связи', device.hostname, 'Шкаф отсутствует или устройство не включено в его список.', to)
     if (device.topologyId && !topologyIds.has(device.topologyId)) add(`topology:${device.id}`, 'Связи', device.hostname, 'Связанная схема отсутствует.', to)
     if (device.manufacturerId && !vendors.has(device.manufacturerId)) add(`vendor:${device.id}`, 'Связи', device.hostname, 'Производитель отсутствует.', to)
   }
