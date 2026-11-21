@@ -508,13 +508,11 @@ body:has(.topology-page.workspace-expanded) { overflow: hidden; }
 .ap-table tbody tr:hover { background: var(--surface-2); }
 .ap-table td { vertical-align: top; }
 .ap-table .icon-button { width: 26px; height: 26px; }
-.ap-ping { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; line-height: 0; }
-.ap-ping svg { display: block; }
-.ap-status-cell { display: flex; align-items: center; min-height: 22px; }
-.ap-ping-up { color: var(--accent); background: var(--accent-soft); }
-.ap-ping-down { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
-.ap-ping-unknown { color: var(--muted); background: var(--surface-3); }
-.ap-ping-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .55; }
+.ap-ping { display: block; width: 10px; height: 10px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 16%, transparent); }
+.ap-status-cell { display: flex; align-items: center; min-height: 22px; padding-left: 5px; }
+.ap-ping-up { color: var(--accent); }
+.ap-ping-down { color: var(--danger); }
+.ap-ping-unknown { color: var(--muted); opacity: .45; }
 .ap-empty { display: grid; place-items: center; gap: 6px; padding: 42px 16px; color: var(--muted); text-align: center; }
 .ap-empty h2 { color: var(--text); font-size: 1rem; }
 .ap-detail { display: grid; gap: 18px; }

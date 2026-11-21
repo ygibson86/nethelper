@@ -1,4 +1,4 @@
-import { Download, Edit3, Globe, Loader2, Plus, Radio, Search, Terminal, Trash2, Upload, Wifi, WifiOff, X } from 'lucide-react'
+import { Download, Edit3, Globe, Loader2, Plus, Radio, Search, Terminal, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useNetHelper } from '../store'
@@ -287,7 +287,7 @@ export function AccessPointsPage() {
               <td>{device.mac ?? <span>MAC не указан</span>}</td>
               <td>{uplink?.switchDevice?.hostname ?? uplink?.address ?? <span>не привязана</span>}<span>{uplink?.switchDevice ? uplink.address : uplink?.address ? 'вне инвентаря' : ''}</span></td>
               <td>{uplink?.port || '—'}</td>
-              <td><div className="ap-status-cell"><span className={`ap-ping ap-ping-${state?.status ?? 'unknown'}`} title={state ? `${state.status === 'up' ? 'отвечает' : 'нет ответа'}${state.rtt ? `, ${state.rtt} мс` : ''} · ${new Date(state.checkedAt).toLocaleTimeString('ru')} · по последнему известному IP` : 'ещё не проверялось'}>{state?.status === 'up' ? <Wifi size={15} /> : state?.status === 'down' ? <WifiOff size={15} /> : <span className="ap-ping-dot" />}</span></div></td>
+              <td><div className="ap-status-cell"><span className={`ap-ping ap-ping-${state?.status ?? 'unknown'}`} title={state ? `${state.status === 'up' ? 'отвечает' : 'нет ответа'}${state.rtt ? `, ${state.rtt} мс` : ''} · ${new Date(state.checkedAt).toLocaleTimeString('ru')} · по последнему известному IP` : 'ещё не проверялось'} /></div></td>
               <td><div className="toolbar" onClick={(event) => event.stopPropagation()}>
                 {uplink?.switchDevice && <button className="icon-button" title={`Терминал ${uplink.switchDevice.hostname}`} aria-label={`Терминал ${uplink.switchDevice.hostname}`} onClick={() => openTerminal(uplink.switchDevice!.id)}><Terminal size={16} /></button>}
                 <WebInterfaceLink url={device.webUrl} className="icon-button" compact label={`Веб-интерфейс ${device.hostname}`} />
