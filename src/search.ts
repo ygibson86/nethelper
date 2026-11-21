@@ -1,13 +1,17 @@
 import type { AppData } from './types'
 
-export interface SearchResult { id: string; title: string; subtitle: string; to: string; kind: 'Устройства' | 'Узлы схем' | 'Core-порты' }
+export interface SearchResult { id: string; title: string; subtitle: string; to: string; kind: 'Устройства' | 'Узлы схем' | 'Core-порты' | 'Точки доступа' }
 export function globalSearch(data: AppData, query: string): SearchResult[] {
   const term = query.trim().toLowerCase()
   if (!term) return []
   const results: SearchResult[] = []
   for (const device of data.switches) {
-    if (![device.hostname, device.ip].some((value) => value.toLowerCase().includes(term))) continue
+    if (![device.hostname, device.ip, device.mac ?? ''].some((value) => value.toLowerCase().includes(term))) continue
     const rack = data.racks.find((item) => item.id === device.rackId)
+    if (device.deviceType === 'access-point') {
+      results.push({ id: `device:${device.id}`, kind: 'Точки доступа', title: device.hostname || device.ip, subtitle: [device.ip, device.description].filter(Boolean).join(' · '), to: `/access-points?device=${encodeURIComponent(device.id)}` })
+      continue
+    }
     results.push({ id: `device:${device.id}`, kind: 'Устройства', title: device.hostname || device.ip, subtitle: [device.ip, rack?.name ?? 'Шкаф не найден', rack?.group].filter(Boolean).join(' · '), to: `/racks?device=${encodeURIComponent(device.id)}` })
   }
   for (const topology of data.topologies) for (const node of topology.nodes) {

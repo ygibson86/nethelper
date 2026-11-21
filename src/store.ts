@@ -153,6 +153,8 @@ interface NetHelperStore extends AppData {
   moveRack: (id: string, direction: -1 | 1) => void
   moveRackTo: (sourceId: string, targetId: string) => void
   addSwitch: (rackId: string, input: Omit<NetworkSwitch, 'id' | 'rackId'>) => void
+  addAccessPoint: (input: Omit<NetworkSwitch, 'id'>) => void
+  mergeAccessPoints: (created: Omit<NetworkSwitch, 'id'>[], updated: { id: string; patch: Partial<NetworkSwitch> }[]) => void
   updateSwitch: (id: string, patch: Partial<NetworkSwitch>) => void
   deleteSwitch: (id: string) => void
   moveSwitch: (rackId: string, switchId: string, direction: -1 | 1) => void
@@ -220,6 +222,15 @@ export const useNetHelper = create<NetHelperStore>()(persist((set, get) => ({
       racks: state.racks.map((rack) => rack.id === rackId ? { ...rack, switchIds: [...rack.switchIds, id] } : rack),
     }))
   },
+  addAccessPoint: (input) => {
+    const id = uid('ap')
+    set((state) => ({ switches: [...state.switches, { ...input, id }] }))
+  },
+  mergeAccessPoints: (created, updated) => set((state) => {
+    const patches = new Map(updated.map((item) => [item.id, item.patch]))
+    const existing = state.switches.map((item) => patches.has(item.id) ? { ...item, ...patches.get(item.id) } : item)
+    return { switches: [...existing, ...created.map((item) => ({ ...item, id: uid('ap') }))] }
+  }),
   updateSwitch: (id, patch) => set((state) => ({ switches: state.switches.map((item) => item.id === id ? { ...item, ...patch } : item) })),
   deleteSwitch: (id) => set((state) => ({
     switches: state.switches.filter((item) => item.id !== id),

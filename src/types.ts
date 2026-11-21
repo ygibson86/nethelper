@@ -24,10 +24,15 @@ export interface NetworkSwitch {
   model: string
   accessMethods: AccessMethod[]
   description: string
-  rackId: string
+  rackId?: string
   topologyId?: string
   webUrl?: string
   isCore?: boolean
+  mac?: string
+  uplinkSwitchId?: string
+  uplinkSwitchAddress?: string
+  uplinkPort?: string
+  note?: string
 }
 
 export interface Rack {

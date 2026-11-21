@@ -6,6 +6,7 @@ import { AuthGate } from './components/AuthGate'
 import { Layout } from './components/Layout'
 import { CorePage } from './pages/CorePage'
 import { RacksPage } from './pages/RacksPage'
+import { AccessPointsPage } from './pages/AccessPointsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { DataQualityPage } from './pages/DataQualityPage'
@@ -24,6 +25,7 @@ function App() {
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/racks" replace />} />
         <Route path="racks" element={<RacksRoute />} />
+        <Route path="access-points" element={<AccessPointsPage />} />
         <Route path="topology" element={<TopologyPage />} />
         <Route path="topology/:id" element={<TopologyPage />} />
         <Route path="core" element={<CorePage />} />

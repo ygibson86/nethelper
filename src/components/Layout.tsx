@@ -1,4 +1,4 @@
-import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Settings, SquareTerminal, Sun, X } from 'lucide-react'
+import { Boxes, Cable, FileCode2, ListChecks, LogOut, Menu, Moon, Network, Radio, Settings, SquareTerminal, Sun, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNetHelper } from '../store'
@@ -9,6 +9,7 @@ import { useSaveState } from './saveState'
 
 const pageNames: Record<string, string> = {
   racks: 'Шкафы',
+  'access-points': 'Точки доступа',
   topology: 'Схемы',
   core: 'Core-коммутаторы',
   templates: 'Шаблоны',
@@ -104,6 +105,7 @@ export function Layout() {
         <GlobalSearch />
         <nav className="main-nav" aria-label="Основная навигация">
           <NavLink to="/racks" onClick={() => setMobileNavOpen(false)}><Boxes size={19} /> Шкафы</NavLink>
+          <NavLink to="/access-points" onClick={() => setMobileNavOpen(false)}><Radio size={19} /> Точки доступа</NavLink>
           <NavLink to="/topology" onClick={() => setMobileNavOpen(false)}><Network size={19} /> Схемы</NavLink>
           <NavLink to="/core" onClick={() => setMobileNavOpen(false)}><Cable size={19} /> Core-коммутаторы</NavLink>
           <NavLink to="/templates" onClick={() => setMobileNavOpen(false)}><FileCode2 size={19} /> Шаблоны</NavLink>
