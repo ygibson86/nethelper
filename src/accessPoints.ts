@@ -2,11 +2,11 @@ import type { AppData, NetworkSwitch } from './types'
 
 export const AP_DEVICE_TYPE = 'access-point' as const
 
-/** MAC в виде AA:BB:CC:DD:EE:FF или null, если строка не похожа на MAC. */
+/** MAC в виде aa:bb:cc:dd:ee:ff или null, если строка не похожа на MAC. */
 export function normalizeMac(value: string | undefined): string | null {
   const raw = (value ?? '').trim()
   if (!raw) return null
-  const hex = raw.replace(/[^0-9a-f]/gi, '').toUpperCase()
+  const hex = raw.replace(/[^0-9a-f]/gi, '').toLowerCase()
   if (hex.length !== 12) return null
   return hex.match(/.{2}/g)!.join(':')
 }
@@ -151,7 +151,9 @@ export function buildApImport(text: string, data: AppData, options: ApImportOpti
   const noteCell = columnIndex(header, 'note')
 
   const cell = (cells: string[], index: number) => index >= 0 ? (cells[index] ?? '').trim() : ''
+  const normalizeName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
   const apByHostname = new Map<string, NetworkSwitch>()
+  const apByNormalizedName = new Map<string, NetworkSwitch>()
   const apByMac = new Map<string, NetworkSwitch>()
   const apByIp = new Map<string, NetworkSwitch>()
   const deviceByHostname = new Map<string, NetworkSwitch>()
@@ -162,6 +164,7 @@ export function buildApImport(text: string, data: AppData, options: ApImportOpti
   }
   for (const device of accessPoints(data.switches)) {
     apByHostname.set(device.hostname.trim().toLowerCase(), device)
+    apByNormalizedName.set(normalizeName(device.hostname), device)
     const mac = normalizeMac(device.mac)
     if (mac) apByMac.set(mac, device)
     if (device.ip.trim()) apByIp.set(device.ip.trim(), device)
@@ -192,7 +195,7 @@ export function buildApImport(text: string, data: AppData, options: ApImportOpti
     const importRow: ApImportRow = { line: row.line, hostname, location, ip, mac: mac ?? '', switchName, switchIp, port, model, note }
     plan.rows.push(importRow)
 
-    const existing = apByHostname.get(hostname.toLowerCase()) ?? (mac ? apByMac.get(mac) : undefined) ?? apByIp.get(ip)
+    const existing = apByHostname.get(hostname.toLowerCase()) ?? apByNormalizedName.get(normalizeName(hostname)) ?? (mac ? apByMac.get(mac) : undefined) ?? apByIp.get(ip)
     const target = switchName ? deviceByHostname.get(switchName.toLowerCase()) ?? (isValidIpv4(switchName) ? deviceByIp.get(switchName) : undefined) : undefined
     const switchDevice = target ?? (switchIp ? deviceByIp.get(switchIp) : undefined)
     if (!switchDevice && (switchIp || switchName)) {

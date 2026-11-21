@@ -18,9 +18,10 @@ const base = () => ({
 })
 
 test('MAC normalization accepts common notations and rejects junk', () => {
-  assert.equal(normalizeMac('aa-bb-cc-dd-ee-ff'), 'AA:BB:CC:DD:EE:FF')
-  assert.equal(normalizeMac('aabb.ccdd.eeff'), 'AA:BB:CC:DD:EE:FF')
-  assert.equal(normalizeMac(' AABBCCDDEEFF '), 'AA:BB:CC:DD:EE:FF')
+  assert.equal(normalizeMac('aa-bb-cc-dd-ee-ff'), 'aa:bb:cc:dd:ee:ff')
+  assert.equal(normalizeMac('aabb.ccdd.eeff'), 'aa:bb:cc:dd:ee:ff')
+  assert.equal(normalizeMac(' AABBCCDDEEFF '), 'aa:bb:cc:dd:ee:ff')
+  assert.equal(normalizeMac('ec:b1:e0:21:3a:60'), 'ec:b1:e0:21:3a:60')
   assert.equal(normalizeMac('nope'), null)
   assert.equal(normalizeMac(''), null)
 })
@@ -33,7 +34,7 @@ test('CSV parsing handles BOM, quotes and delimiter detection', () => {
   assert.deepEqual(parsed.rows[0].cells, ['AP-1', 'Кабинет 101; потолок', '10.0.0.1'])
 })
 
-test('import creates points with uplink by switch IP and generates nothing else', () => {
+test('import creates points with uplink by switch IP', () => {
   const data = base()
   const csv = 'hostname;location;ip;mac;switch;port\nRU02AP021;ИТ;10.109.41.21;aa:bb:cc:dd:ee:01;10.109.33.79;2\n'
   const plan = buildApImport(csv, data, { defaultManufacturerId: 'eltex' })
@@ -42,7 +43,7 @@ test('import creates points with uplink by switch IP and generates nothing else'
   const created = plan.create[0]
   assert.equal(created.uplinkSwitchId, 'sw1')
   assert.equal(created.uplinkPort, '2')
-  assert.equal(created.mac, 'AA:BB:CC:DD:EE:01')
+  assert.equal(created.mac, 'aa:bb:cc:dd:ee:01')
   assert.equal(created.description, 'ИТ')
   assert.equal(created.deviceType, 'access-point')
 })
@@ -60,7 +61,7 @@ test('import keeps unknown switch address and warns without blocking', () => {
 test('import updates existing point matched by hostname and keeps its id', () => {
   const data = base()
   data.switches.push({ id: 'ap1', hostname: 'RU02AP021', ip: '10.109.41.21', manufacturerId: '', deviceType: 'access-point', model: 'WEP-30', accessMethods: [], description: 'old', rackId: '', uplinkSwitchId: 'sw1', uplinkPort: '2' })
-  const csv = 'hostname;location;ip;mac;switch;port;note\nRU02AP021;Новое место;10.109.41.21;AA:BB:CC:DD:EE:02;10.109.33.27;9;менять кабель\n'
+  const csv = 'hostname;location;ip;mac;switch;port;note\nRU02AP021;Новое место;10.109.41.21;aa:bb:cc:dd:ee:02;10.109.33.27;9;менять кабель\n'
   const plan = buildApImport(csv, data)
   assert.equal(plan.create.length, 0)
   assert.equal(plan.update.length, 1)
@@ -70,18 +71,25 @@ test('import updates existing point matched by hostname and keeps its id', () =>
   assert.equal(plan.update[0].patch.note, 'менять кабель')
 })
 
+test('import matches controller names with a hyphen to existing points', () => {
+  const data = base()
+  data.switches.push({ id: 'ap1', hostname: 'RU02AP021', ip: '10.109.41.21', manufacturerId: 'eltex', deviceType: 'access-point', model: '', accessMethods: [], description: '', rackId: '' })
+  const plan = buildApImport('hostname;ip;model\nRU02-AP021;10.109.41.21;WEP-30L\n', data)
+  assert.equal(plan.create.length, 0)
+  assert.equal(plan.update.length, 1)
+  assert.equal(plan.update[0].id, 'ap1')
+  assert.equal(plan.update[0].patch.hostname, 'RU02-AP021')
+  assert.equal(plan.update[0].patch.model, 'WEP-30L')
+})
+
 test('import skips rows without hostname or with broken IP', () => {
   const data = base()
   const csv = 'hostname;ip\n;10.0.0.1\nAP-X;10.0.0.400\n'
   const plan = buildApImport(csv, data)
   assert.equal(plan.rows.length, 0)
   assert.equal(plan.skipped, 2)
-  assert_equal_errors(plan.issues)
+  assert.equal(plan.issues.filter((issue) => issue.level === 'error').length, 2)
 })
-
-function assert_equal_errors(issues) {
-  assert.equal(issues.filter((issue) => issue.level === 'error').length, 2)
-}
 
 test('uplink resolution falls back to the stored address when the switch is not in inventory', () => {
   const data = base()
